@@ -1,0 +1,20 @@
+[package]
+name = "wireguard-proxy"
+version = "0.1.0"
+authors = ["moparisthebest <admin@moparisthebest.com>"]
+
+description = "Tunnel wireguard (UDP) over TCP/TLS."
+repository  = "https://code.moparisthebest.com/moparisthebest/wireguard-proxy"
+keywords    = ["wireguard", "tunnel", "tcp", "udp", "tls"]
+
+license = "MIT/Apache-2.0"
+readme = "README.md"
+
+edition = "2018"
+
+include = [
+    "**/*.rs",
+    "Cargo.toml",
+    "LICENSE-*",
+    "*.md",
+]
