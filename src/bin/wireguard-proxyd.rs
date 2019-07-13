@@ -3,9 +3,9 @@ use std::net::{TcpListener, TcpStream, UdpSocket};
 use std::time::Duration;
 
 use std::env;
-use std::str::FromStr;
 use std::sync::Arc;
 use std::thread;
+use wireguard_proxy::Args;
 
 struct Server {
     udp_target: String,
@@ -14,8 +14,6 @@ struct Server {
     udp_high_port: u16,
     socket_timeout: Option<Duration>,
 }
-
-unsafe impl Send for Server {}
 
 impl Server {
     fn new(
@@ -93,38 +91,13 @@ impl Server {
     }
 }
 
-struct Args<'a> {
-    args: &'a Vec<String>,
-}
-
-impl<'a> Args<'a> {
-    fn new(args: &'a Vec<String>) -> Args {
-        Args { args }
-    }
-    fn get_str(&self, index: usize, def: &'a str) -> &'a str {
-        match self.args.get(index) {
-            Some(ret) => ret,
-            None => def,
-        }
-    }
-    fn get<T: FromStr>(&self, index: usize, def: T) -> T {
-        match self.args.get(index) {
-            Some(ret) => match ret.parse::<T>() {
-                Ok(ret) => ret,
-                Err(_) => def, // or panic
-            },
-            None => def,
-        }
-    }
-}
-
 fn main() {
     let raw_args = env::args().collect();
     let args = Args::new(&raw_args);
     if args.get_str(1, "").contains("-h") {
         println!(
             "usage: {} [-h] [host, 127.0.0.1:5555] [udp_target, 127.0.0.1:51820] [udp_bind_host_range, 127.0.0.1:30000-40000] [socket_timeout, 0]",
-            args.get_str(0, "curl_bash")
+            args.get_str(0, "wireguard-proxyd")
         );
         return;
     }
