@@ -51,7 +51,7 @@ impl Server {
             }
         };
         udp_socket.set_read_timeout(self.socket_timeout)?;
-        udp_socket.connect(&self.udp_target)?;
+        //udp_socket.connect(&self.udp_target)?;
 
         let udp_socket_clone = udp_socket.try_clone().expect("clone udp_socket failed");
         let mut tcp_stream_clone = tcp_stream.try_clone().expect("clone tcp_stream failed");
@@ -78,7 +78,9 @@ impl Server {
             match tcp_stream.read(&mut buf) {
                 Ok(len) => {
                     println!("tcp got len: {}", len);
-                    udp_socket.send(&buf[..len])?;
+                    //udp_socket.send(&buf[..len])?;
+                    let sent = udp_socket.send_to(&buf[..len], &self.udp_target)?;
+                    println!("udp sent len: {}", sent);
                 }
                 Err(e) => {
                     println!("Unable to read stream: {}", e);
@@ -96,7 +98,7 @@ fn main() {
     let args = Args::new(&raw_args);
     if args.get_str(1, "").contains("-h") {
         println!(
-            "usage: {} [-h] [host, 127.0.0.1:5555] [udp_target, 127.0.0.1:51820] [udp_bind_host_range, 127.0.0.1:30000-40000] [socket_timeout, 0]",
+            "usage: {} [-h] [tcp_host, 127.0.0.1:5555] [udp_target, 127.0.0.1:51820] [udp_bind_host_range, 127.0.0.1:30000-40000] [socket_timeout, 0]",
             args.get_str(0, "wireguard-proxyd")
         );
         return;

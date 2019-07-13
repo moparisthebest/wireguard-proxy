@@ -5,7 +5,7 @@ Server-side daemon to proxy multiple TCP connections to wireguard, client-side i
 Testing with GNU netcat:
 
 - `nc -vulp 51820` listen on udp like wireguard would
-- `nc -u 127.0.0.1 51820` connect directly to local udp wireguard port to send/receive data
+- `nc -u -p 51821 127.0.0.1 51820` connect directly to local udp wireguard port to send data to 51820 from port 51821
 - `nc -vlp 5555` listen on tcp like wireguard-proxy would
 - `nc 127.0.0.1 5555` connect directly to local tcp wireguard-proxy port to send/recieve data
 - so to test through wireguard-proxy run first and last command while it's running, type in both places
