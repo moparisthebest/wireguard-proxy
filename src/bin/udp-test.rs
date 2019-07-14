@@ -42,16 +42,14 @@ impl Server {
     }
 
     fn start(&self) -> std::io::Result<usize> {
-        let udp_host = UdpSocket::bind(&self.udp_host)?;
-        udp_host.set_read_timeout(self.socket_timeout)?;
+        let udp_socket = UdpSocket::bind(&self.udp_host)?;
+        udp_socket.set_read_timeout(self.socket_timeout)?;
 
-        let udp_target = UdpSocket::bind("127.0.0.1:3401")?;
-        udp_target.connect(&self.udp_target)?;
-
-        udp_target.send(&PONG)?;
+        let sent = udp_socket.send_to(&PONG, &self.udp_target)?;
+        assert_eq!(sent, PONG.len());
 
         let mut buf = [0u8; 2048];
-        match udp_host.recv(&mut buf) {
+        match udp_socket.recv(&mut buf) {
             Ok(len) => {
                 println!("udp got len: {}", len);
                 assert_eq!(len, PONG.len());
