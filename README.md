@@ -1,6 +1,14 @@
 # wireguard-proxy
 
-Server-side daemon to proxy multiple TCP connections to wireguard, client-side implementation coming here soon
+Proxy wireguard UDP packets over TCP/TLS
+
+`wireguard-proxyd` is a server-side daemon to accept TCP connections from multiple clients and pipe data to and from the specified UDP port  
+`wireguard-proxy` is a client-side daemon that accepts UDP packets on a local port from a single client, connects to a single remote TCP port, and pipes data between them
+
+Testing:
+
+`udp-test` is a utility to send a UDP packet and then receive a UDP packet and ensure they are the same, this verifies packets sent through proxy/proxyd are unmolested  
+`test.sh` runs udp-test against itself and then through proxyd/proxy
 
 Testing with GNU netcat:
 

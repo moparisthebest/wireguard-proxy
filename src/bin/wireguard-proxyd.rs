@@ -1,11 +1,10 @@
-use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream, UdpSocket};
 use std::time::Duration;
 
 use std::env;
 use std::sync::Arc;
 use std::thread;
-use wireguard_proxy::Args;
+use wireguard_proxy::{Args, TcpUdpPipe};
 
 struct Server {
     udp_target: String,
@@ -35,7 +34,7 @@ impl Server {
         }
     }
 
-    fn handle_client(&self, mut tcp_stream: TcpStream) -> std::io::Result<usize> {
+    fn handle_client(&self, tcp_stream: TcpStream) -> std::io::Result<usize> {
         tcp_stream.set_read_timeout(self.socket_timeout)?;
 
         let mut port = self.udp_low_port;
@@ -51,45 +50,19 @@ impl Server {
             }
         };
         udp_socket.set_read_timeout(self.socket_timeout)?;
-        //udp_socket.connect(&self.udp_target)?;
+        udp_socket.connect(&self.udp_target)?;
 
-        let udp_socket_clone = udp_socket.try_clone().expect("clone udp_socket failed");
-        let mut tcp_stream_clone = tcp_stream.try_clone().expect("clone tcp_stream failed");
-        thread::spawn(move || {
-            let mut buf = [0u8; 2048];
-            loop {
-                match udp_socket_clone.recv(&mut buf) {
-                    Ok(len) => {
-                        println!("udp got len: {}", len);
-                        tcp_stream_clone
-                            .write(&buf[..len])
-                            .expect("cannot write to tcp_clone");
-                    }
-                    Err(e) => {
-                        println!("recv function failed: {:?}", e);
-                        break;
-                    }
-                }
-            }
+        let mut udp_pipe = TcpUdpPipe::new(tcp_stream, udp_socket);
+        let mut udp_pipe_clone = udp_pipe.try_clone()?;
+        thread::spawn(move || loop {
+            udp_pipe_clone
+                .udp_to_tcp()
+                .expect("cannot write to tcp_clone");
         });
 
-        let mut buf = [0u8; 2048];
         loop {
-            match tcp_stream.read(&mut buf) {
-                Ok(len) => {
-                    println!("tcp got len: {}", len);
-                    //udp_socket.send(&buf[..len])?;
-                    let sent = udp_socket.send_to(&buf[..len], &self.udp_target)?;
-                    println!("udp sent len: {}", sent);
-                }
-                Err(e) => {
-                    println!("Unable to read stream: {}", e);
-                    break;
-                }
-            }
+            udp_pipe.tcp_to_udp()?;
         }
-
-        Ok(0)
     }
 }
 
