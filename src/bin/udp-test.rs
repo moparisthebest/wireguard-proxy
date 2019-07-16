@@ -1,7 +1,8 @@
 use std::net::UdpSocket;
 use std::time::Duration;
 
-use std::env;
+use std::process::{exit, Command};
+use std::{env, thread};
 use wireguard_proxy::Args;
 
 const PONG: [u8; 246] = [
@@ -69,16 +70,63 @@ impl Server {
 fn main() {
     let raw_args = env::args().collect();
     let args = Args::new(&raw_args);
-    if args.get_str(1, "").contains("-h") {
+    let first_arg = args.get_str(1, "127.0.0.1:51821");
+    if first_arg.contains("-h") {
         println!(
-            "usage: {} [-h] [udp_host, 127.0.0.1:51821] [udp_target, 127.0.0.1:51821] [socket_timeout, 1]",
+            "usage: {} [-h] [-s run a self test through proxy/proxyd] [udp_host, 127.0.0.1:51821] [udp_target, 127.0.0.1:51821] [socket_timeout, 1]",
             args.get_str(0, "udp-test")
         );
         return;
+    } else if first_arg.contains("-s") {
+        // here is the hard work, we need to spawn proxyd and proxy from the same dir as udp-test...
+        let host = "127.0.0.1:51822";
+        let tcp_host = "127.0.0.1:5555";
+        let sleep = Duration::from_secs(5);
+
+        let udp_test = args.get_str(0, "udp-test");
+        let proxyd = udp_test.clone().replace("udp-test", "wireguard-proxyd");
+        let proxy = udp_test.clone().replace("udp-test", "wireguard-proxy");
+
+        println!("executing: {} '{}' '{}'", proxyd, tcp_host, host);
+        let mut proxyd = Command::new(proxyd)
+            .arg(tcp_host)
+            .arg(host)
+            .spawn()
+            .expect("wireguard-proxyd failed to launch");
+        println!("waiting: {:?} for wireguard-proxyd to come up.....", sleep);
+        thread::sleep(sleep);
+
+        println!("executing: {}", proxy);
+        let mut proxy = Command::new(proxy)
+            .spawn()
+            .expect("wireguard-proxy failed to launch");
+        println!("waiting: {:?} for wireguard-proxy to come up.....", sleep);
+        thread::sleep(sleep);
+
+        println!("executing: {} '{}'", udp_test, host);
+        let mut udp_test = Command::new(udp_test)
+            .arg(host)
+            .spawn()
+            .expect("udp-test failed to launch");
+        println!("waiting: {:?} for udp-test to come up.....", sleep);
+        thread::sleep(sleep);
+
+        // ignore all these, what could we do anyway?
+        proxy.kill().ok();
+        proxyd.kill().ok();
+        udp_test.kill().ok();
+
+        exit(
+            udp_test
+                .wait()
+                .expect("could not get udp-test exit code")
+                .code()
+                .expect("could not get udp-test exit code"),
+        );
     }
 
     let server = Server::new(
-        args.get_str(1, "127.0.0.1:51821").to_owned(),
+        first_arg.to_owned(),
         args.get_str(2, "127.0.0.1:51821").to_owned(),
         args.get(3, 1),
     );
