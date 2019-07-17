@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use std::process::{exit, Command};
 use std::{env, thread};
-use wireguard_proxy::Args;
+use wireguard_proxy::{Args, ProxyClient, ProxyServer};
 
 const PONG: [u8; 246] = [
     0x6A, 0x2, 0x6B, 0xC, 0x6C, 0x3F, 0x6D, 0xC, 0xA2, 0xEA, 0xDA, 0xB6, 0xDC, 0xD6, 0x6E, 0x0,
@@ -70,10 +70,10 @@ impl Server {
 fn main() {
     let raw_args = env::args().collect();
     let args = Args::new(&raw_args);
-    let first_arg = args.get_str(1, "127.0.0.1:51821");
+    let mut first_arg = args.get_str(1, "127.0.0.1:51821");
     if first_arg.contains("-h") {
         println!(
-            "usage: {} [-h] [-s run a self test through proxy/proxyd] [udp_host, 127.0.0.1:51821] [udp_target, 127.0.0.1:51821] [socket_timeout, 1]",
+            "usage: {} [-h] [-s run a self test through proxy/proxyd] [-is run a self test through proxy/proxyd without spawning other processes] [udp_host, 127.0.0.1:51821] [udp_target, 127.0.0.1:51821] [socket_timeout, 10]",
             args.get_str(0, "udp-test")
         );
         return;
@@ -123,12 +123,57 @@ fn main() {
                 .code()
                 .expect("could not get udp-test exit code"),
         );
+    } else if first_arg.contains("-is") {
+        let host = "127.0.0.1:51822";
+        let tcp_host = "127.0.0.1:5555";
+        let sleep = Duration::from_secs(5);
+
+        let proxy_server = ProxyServer::new(
+            tcp_host.to_owned(),
+            host.to_owned(),
+            "127.0.0.1".to_owned(),
+            30000,
+            30100,
+            0,
+        );
+
+        println!(
+            "udp_target: {}, udp_bind_host_range: 127.0.0.1:30000-30100, socket_timeout: {:?}",
+            proxy_server.client_handler.udp_target, proxy_server.client_handler.socket_timeout,
+        );
+
+        println!("executing: wireguard-proxyd '{}' '{}'", tcp_host, host);
+        thread::spawn(move || proxy_server.start().expect("error running proxy_server"));
+        println!("waiting: {:?} for wireguard-proxyd to come up.....", sleep);
+        thread::sleep(sleep);
+
+        let proxy_client = ProxyClient::new(
+            "127.0.0.1:51821".to_owned(),
+            "127.0.0.1:51820".to_owned(),
+            tcp_host.to_owned().to_owned(),
+            15,
+        );
+
+        println!(
+            "udp_host: {}, udp_target: {}, tcp_target: {}, socket_timeout: {:?}",
+            proxy_client.udp_host,
+            proxy_client.udp_target,
+            proxy_client.tcp_target,
+            proxy_client.socket_timeout,
+        );
+
+        println!("executing: wireguard-proxy");
+        thread::spawn(move || proxy_client.start().expect("error running proxy_client"));
+        println!("waiting: {:?} for wireguard-proxy to come up.....", sleep);
+        thread::sleep(sleep);
+
+        first_arg = host;
     }
 
     let server = Server::new(
         first_arg.to_owned(),
         args.get_str(2, "127.0.0.1:51821").to_owned(),
-        args.get(3, 1),
+        args.get(3, 10),
     );
 
     println!(
