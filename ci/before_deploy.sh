@@ -19,17 +19,16 @@ main() {
 
     # TODO Update this to build the artifacts that matter to you
     cross rustc --bin wireguard-proxy --target $TARGET --release -- -C lto
-    cross rustc --bin wireguard-proxyd --target $TARGET --release -- -C lto
 
     # TODO Update this to package the right artifacts, this needs to handle .exe too...
     case $TARGET in
         x86_64-pc-windows-gnu)
-            strip target/$TARGET/release/wireguard-proxy.exe target/$TARGET/release/wireguard-proxyd.exe || echo 'strip failed, ignoring...'
-            cp target/$TARGET/release/wireguard-proxy.exe target/$TARGET/release/wireguard-proxyd.exe $stage/
+            strip target/$TARGET/release/wireguard-proxy.exe || echo 'strip failed, ignoring...'
+            cp target/$TARGET/release/wireguard-proxy.exe $stage/
             ;;
         *)
-            strip target/$TARGET/release/wireguard-proxy target/$TARGET/release/wireguard-proxyd || echo 'strip failed, ignoring...'
-            cp target/$TARGET/release/wireguard-proxy target/$TARGET/release/wireguard-proxyd $stage/
+            strip target/$TARGET/release/wireguard-proxy || echo 'strip failed, ignoring...'
+            cp target/$TARGET/release/wireguard-proxy $stage/
             ;;
     esac
 

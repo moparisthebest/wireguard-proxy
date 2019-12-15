@@ -13,18 +13,41 @@ impl<'a> Args<'a> {
     pub fn new(args: &'a Vec<String>) -> Args {
         Args { args }
     }
-    pub fn get_str(&self, index: usize, def: &'a str) -> &'a str {
-        match self.args.get(index) {
+    pub fn flag(&self, flag: &'a str) -> bool {
+        self.args.contains(&flag.to_owned())
+    }
+    pub fn get_option(&self, flags: &[&'a str]) -> Option<&'a str> {
+        for flag in flags.iter() {
+            let mut found = false;
+            for arg in self.args.iter() {
+                if found {
+                    return Some(arg);
+                }
+                if arg == flag {
+                    found = true;
+                }
+            }
+        }
+        return None;
+    }
+    pub fn get_str(&self, flags: &[&'a str], def: &'a str) -> &'a str {
+        match self.get_option(flags) {
             Some(ret) => ret,
             None => def,
         }
     }
-    pub fn get<T: FromStr>(&self, index: usize, def: T) -> T {
-        match self.args.get(index) {
+    pub fn get<T: FromStr>(&self, flags: &[&'a str], def: T) -> T {
+        match self.get_option(flags) {
             Some(ret) => match ret.parse::<T>() {
                 Ok(ret) => ret,
                 Err(_) => def, // or panic
             },
+            None => def,
+        }
+    }
+    pub fn get_str_idx(&self, index: usize, def: &'a str) -> &'a str {
+        match self.args.get(index) {
+            Some(ret) => ret,
             None => def,
         }
     }

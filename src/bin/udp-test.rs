@@ -70,41 +70,53 @@ impl Server {
 fn main() {
     let raw_args = env::args().collect();
     let args = Args::new(&raw_args);
-    let mut first_arg = args.get_str(1, "127.0.0.1:51820");
-    if first_arg.contains("-h") {
-        println!(
-            "usage: {} [-h] [-s run a self test through proxy/proxyd] [-is run a self test through proxy/proxyd without spawning other processes] [udp_host, 127.0.0.1:51820] [udp_target, 127.0.0.1:51820] [socket_timeout, 10]",
-            args.get_str(0, "udp-test")
-        );
+    let default_udp_host_target = "127.0.0.1:51820";
+    let default_socket_timeout = 10;
+    let mut first_arg = args.get_str(&["-uh", "--udp-host"], default_udp_host_target);
+    if args.flag("-h") || args.flag("--help"){
+        println!(r#"usage: udp-test [options...]
+ -h, --help                      print this usage text
+ -s, --self-test                 run a self test through proxy
+ -is, --internal-self-test       run a self test through proxy without
+                                 spawning other processes
+ -uh, --udp-host <ip:port>       UDP host to listen on, default: {}
+ -ut, --udp-target <ip:port>     UDP target to send packets to, default: {}
+ -st, --socket-timeout <seconds> Socket timeout (time to wait for data)
+                                 before terminating, default: {}
+        "#, default_udp_host_target, default_udp_host_target, default_socket_timeout);
         return;
-    } else if first_arg.contains("-s") {
+    } else if args.flag("-s") || args.flag("--self-test") {
         // here is the hard work, we need to spawn proxyd and proxy from the same dir as udp-test...
         let host = "127.0.0.1:51822";
         let tcp_host = "127.0.0.1:5555";
         let sleep = Duration::from_secs(5);
 
-        let udp_test = args.get_str(0, "udp-test");
-        let proxyd = udp_test.clone().replace("udp-test", "wireguard-proxyd");
+        let udp_test = args.get_str_idx(0, "udp-test");
         let proxy = udp_test.clone().replace("udp-test", "wireguard-proxy");
 
-        println!("executing: {} '{}' '{}'", proxyd, tcp_host, host);
-        let mut proxyd = Command::new(proxyd)
+        println!("executing: {} -th '{}' -ut '{}'", proxy, tcp_host, host);
+        let mut proxyd = Command::new(proxy.clone())
+            .arg("-th")
             .arg(tcp_host)
+            .arg("-ut")
             .arg(host)
             .spawn()
-            .expect("wireguard-proxyd failed to launch");
-        println!("waiting: {:?} for wireguard-proxyd to come up.....", sleep);
+            .expect("wireguard-proxy server failed to launch");
+        println!("waiting: {:?} for wireguard-proxy server to come up.....", sleep);
         thread::sleep(sleep);
 
-        println!("executing: {}", proxy);
+        println!("executing: {} -tt {}", proxy, tcp_host);
         let mut proxy = Command::new(proxy)
+            .arg("-tt")
+            .arg(tcp_host)
             .spawn()
-            .expect("wireguard-proxy failed to launch");
-        println!("waiting: {:?} for wireguard-proxy to come up.....", sleep);
+            .expect("wireguard-proxy client failed to launch");
+        println!("waiting: {:?} for wireguard-proxy client to come up.....", sleep);
         thread::sleep(sleep);
 
-        println!("executing: {} '{}'", udp_test, host);
+        println!("executing: {} -uh '{}'", udp_test, host);
         let mut udp_test = Command::new(udp_test)
+            .arg("-uh")
             .arg(host)
             .spawn()
             .expect("udp-test failed to launch");
@@ -123,7 +135,7 @@ fn main() {
                 .code()
                 .expect("could not get udp-test exit code"),
         );
-    } else if first_arg.contains("-is") {
+    } else if args.flag("-is") || args.flag("--internal-self-test") {
         let host = "127.0.0.1:51822";
         let tcp_host = "127.0.0.1:5555";
         let sleep = Duration::from_secs(5);
@@ -142,9 +154,9 @@ fn main() {
             proxy_server.client_handler.udp_target, proxy_server.client_handler.socket_timeout,
         );
 
-        println!("executing: wireguard-proxyd '{}' '{}'", tcp_host, host);
+        println!("executing: wireguard-proxy -th '{}' -ut '{}'", tcp_host, host);
         thread::spawn(move || proxy_server.start().expect("error running proxy_server"));
-        println!("waiting: {:?} for wireguard-proxyd to come up.....", sleep);
+        println!("waiting: {:?} for wireguard-proxy server to come up.....", sleep);
         thread::sleep(sleep);
 
         let proxy_client = ProxyClient::new(
@@ -160,9 +172,9 @@ fn main() {
             proxy_client.socket_timeout,
         );
 
-        println!("executing: wireguard-proxy");
+        println!("executing: wireguard-proxy -tt {}", tcp_host);
         thread::spawn(move || proxy_client.start().expect("error running proxy_client"));
-        println!("waiting: {:?} for wireguard-proxy to come up.....", sleep);
+        println!("waiting: {:?} for wireguard-proxy client to come up.....", sleep);
         thread::sleep(sleep);
 
         first_arg = host;
@@ -170,8 +182,8 @@ fn main() {
 
     let server = Server::new(
         first_arg.to_owned(),
-        args.get_str(2, "127.0.0.1:51820").to_owned(),
-        args.get(3, 10),
+        args.get_str(&["-ut", "--udp-target"], default_udp_host_target).to_owned(),
+        args.get(&["-st", "--socket-timeout"], default_socket_timeout),
     );
 
     println!(

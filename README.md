@@ -2,15 +2,16 @@
 
 Proxy wireguard UDP packets over TCP/TLS
 
-`wireguard-proxyd` is a server-side daemon to accept TCP connections from multiple clients and pipe data to and from the specified UDP port  
-`wireguard-proxy` is a client-side daemon that accepts UDP packets on a local port from a single client, connects to a single remote TCP port, and pipes data between them
+`wireguard-proxy` has 2 modes:
+- server-side daemon to accept TCP connections from multiple clients and pipe data to and from the specified UDP port
+- client-side daemon that accepts UDP packets on a local port from a single client, connects to a single remote TCP port, and pipes data between them
 
 Testing:
 
-`udp-test` is a utility to send a UDP packet and then receive a UDP packet and ensure they are the same, this verifies packets sent through proxy/proxyd are unmolested  
-`udp-test -s` runs udp-test against itself through proxyd/proxy by spawning actual binaries
-`udp-test -is` runs udp-test against itself through proxyd/proxy in same executable by using library, so does not test command line parsing etc
-`test.sh` runs udp-test against itself, then the udp-test self tests above, and then through proxyd/proxy in the shell script
+- `udp-test` is a utility to send a UDP packet and then receive a UDP packet and ensure they are the same, this verifies packets sent through proxy server/client are unmolested  
+- `udp-test -s` runs udp-test against itself through proxy server/client by spawning actual binaries
+- `udp-test -is` runs udp-test against itself through proxy server/client in same executable by using library, so does not test command line parsing etc
+- `test.sh` runs udp-test against itself, the udp-test self tests above, and through proxy server/client in the shell script
 
 Testing with GNU netcat:
 
