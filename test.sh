@@ -1,7 +1,14 @@
 #!/bin/sh
+set -x
 
 # first make sure udp-test succeeds running against itself
 cargo run --release --bin udp-test || exit 1
+
+# now run udp-test without spawning other processes
+cargo run --release --bin udp-test -- -is || exit 1
+
+# now run udp-test essentially just like the script below, but all in rust
+cargo run --release --bin udp-test -- -s || exit 1
 
 # now run proxyd pointing to udp-test
 cargo run --release --bin wireguard-proxyd -- 127.0.0.1:5555 127.0.0.1:51822 &

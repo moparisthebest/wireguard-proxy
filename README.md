@@ -8,9 +8,9 @@ Proxy wireguard UDP packets over TCP/TLS
 Testing:
 
 `udp-test` is a utility to send a UDP packet and then receive a UDP packet and ensure they are the same, this verifies packets sent through proxy/proxyd are unmolested  
-`test.sh` runs udp-test against itself and then through proxyd/proxy  
 `udp-test -s` runs udp-test against itself through proxyd/proxy by spawning actual binaries
 `udp-test -is` runs udp-test against itself through proxyd/proxy in same executable by using library, so does not test command line parsing etc
+`test.sh` runs udp-test against itself, then the udp-test self tests above, and then through proxyd/proxy in the shell script
 
 Testing with GNU netcat:
 
