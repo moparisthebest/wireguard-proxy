@@ -52,8 +52,21 @@ impl TcpUdpPipe {
         ))
     }
 
+    pub fn udp_to_tcp_connect_socket(&mut self) -> std::io::Result<usize> {
+        let (len, src_addr) = self.udp_socket.recv_from(&mut self.buf[2..])?;
+
+        println!("first packet from {}, connecting to that", src_addr);
+        self.udp_socket.connect(src_addr)?;
+
+        self.send_udp(len)
+    }
+
     pub fn udp_to_tcp(&mut self) -> std::io::Result<usize> {
         let len = self.udp_socket.recv(&mut self.buf[2..])?;
+        self.send_udp(len)
+    }
+
+    fn send_udp(&mut self, len: usize) -> std::io::Result<usize> {
         println!("udp got len: {}", len);
 
         self.buf[0] = ((len >> 8) & 0xFF) as u8;
@@ -80,16 +93,14 @@ impl TcpUdpPipe {
 
 pub struct ProxyClient {
     pub udp_host: String,
-    pub udp_target: String,
     pub tcp_target: String,
     pub socket_timeout: Option<Duration>,
 }
 
 impl ProxyClient {
-    pub fn new(udp_host: String, udp_target: String, tcp_target: String, secs: u64) -> ProxyClient {
+    pub fn new(udp_host: String, tcp_target: String, secs: u64) -> ProxyClient {
         ProxyClient {
             udp_host,
-            udp_target,
             tcp_target,
             socket_timeout: match secs {
                 0 => None,
@@ -105,9 +116,12 @@ impl ProxyClient {
 
         let udp_socket = UdpSocket::bind(&self.udp_host)?;
         udp_socket.set_read_timeout(self.socket_timeout)?;
-        //udp_socket.connect(&self.udp_target)?; // this isn't strictly needed...  just filters who we can receive from
 
         let mut udp_pipe = TcpUdpPipe::new(tcp_stream, udp_socket);
+
+        // we want to wait for first udp packet from client first, to set the target to respond to
+        udp_pipe.udp_to_tcp_connect_socket()?;
+
         let mut udp_pipe_clone = udp_pipe.try_clone()?;
         thread::spawn(move || loop {
             udp_pipe_clone
