@@ -84,6 +84,7 @@ branches:
     - master
     - appveyor
     - ci
+    - openssl
 
 notifications:
   - provider: Email

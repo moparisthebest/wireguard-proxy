@@ -18,3 +18,10 @@ include = [
     "LICENSE-*",
     "*.md",
 ]
+
+[features]
+default = ["tls"]
+tls = ["openssl"]
+
+[dependencies]
+openssl = { version = "0.10.26", optional = true }

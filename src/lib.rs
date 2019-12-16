@@ -4,6 +4,8 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
+use std::cell::{UnsafeCell};
+use openssl::ssl::{SslConnector, SslMethod, SslStream, SslVerifyMode};
 
 pub struct Args<'a> {
     args: &'a Vec<String>,
@@ -53,14 +55,14 @@ impl<'a> Args<'a> {
     }
 }
 
-pub struct TcpUdpPipe {
+pub struct TcpUdpPipe<T: Write + Read + TryClone<T> + Send + 'static> {
     buf: [u8; 2050], // 2048 + 2 for len
-    tcp_stream: TcpStream,
+    tcp_stream: T,
     udp_socket: UdpSocket,
 }
 
-impl TcpUdpPipe {
-    pub fn new(tcp_stream: TcpStream, udp_socket: UdpSocket) -> TcpUdpPipe {
+impl<T: Write + Read + TryClone<T> + Send + 'static> TcpUdpPipe<T> {
+    pub fn new(tcp_stream: T, udp_socket: UdpSocket) -> TcpUdpPipe<T> {
         TcpUdpPipe {
             tcp_stream,
             udp_socket,
@@ -68,28 +70,30 @@ impl TcpUdpPipe {
         }
     }
 
-    pub fn try_clone(&self) -> std::io::Result<TcpUdpPipe> {
+    pub fn try_clone(&self) -> std::io::Result<TcpUdpPipe<T>> {
         Ok(TcpUdpPipe::new(
             self.tcp_stream.try_clone()?,
             self.udp_socket.try_clone()?,
         ))
     }
 
-    pub fn udp_to_tcp_connect_socket(&mut self) -> std::io::Result<usize> {
+    pub fn shuffle_after_first_udp(&mut self) -> std::io::Result<usize> {
         let (len, src_addr) = self.udp_socket.recv_from(&mut self.buf[2..])?;
 
         println!("first packet from {}, connecting to that", src_addr);
         self.udp_socket.connect(src_addr)?;
 
-        self.send_udp(len)
+        self.send_udp(len)?;
+
+        self.shuffle()
     }
 
-    pub fn udp_to_tcp(&mut self) -> std::io::Result<usize> {
+    pub fn udp_to_tcp(&mut self) -> std::io::Result<()> {
         let len = self.udp_socket.recv(&mut self.buf[2..])?;
         self.send_udp(len)
     }
 
-    fn send_udp(&mut self, len: usize) -> std::io::Result<usize> {
+    fn send_udp(&mut self, len: usize) -> std::io::Result<()> {
         println!("udp got len: {}", len);
 
         self.buf[0] = ((len >> 8) & 0xFF) as u8;
@@ -98,7 +102,8 @@ impl TcpUdpPipe {
         //let test_len = ((self.buf[0] as usize) << 8) + self.buf[1] as usize;
         //println!("tcp sending test_len: {}", test_len);
 
-        self.tcp_stream.write(&self.buf[..len + 2])
+        self.tcp_stream.write_all(&self.buf[..len + 2])
+        // todo: do this? self.tcp_stream.flush()
     }
 
     pub fn tcp_to_udp(&mut self) -> std::io::Result<usize> {
@@ -111,6 +116,19 @@ impl TcpUdpPipe {
 
         //let sent = udp_socket.send_to(&buf[..len], &self.udp_target)?;
         //assert_eq!(sent, len);
+    }
+
+    pub fn shuffle(&mut self) -> std::io::Result<usize> {
+        let mut udp_pipe_clone = self.try_clone()?;
+        thread::spawn(move || loop {
+            udp_pipe_clone
+                .udp_to_tcp()
+                .expect("cannot write to tcp_clone");
+        });
+
+        loop {
+            self.tcp_to_udp()?;
+        }
     }
 }
 
@@ -132,29 +150,107 @@ impl ProxyClient {
         }
     }
 
-    pub fn start(&self) -> std::io::Result<usize> {
+    fn tcp_connect(&self) -> std::io::Result<TcpStream> {
         let tcp_stream = TcpStream::connect(&self.tcp_target)?;
-
         tcp_stream.set_read_timeout(self.socket_timeout)?;
+        Ok(tcp_stream)
+    }
 
+    fn udp_connect(&self) -> std::io::Result<UdpSocket> {
         let udp_socket = UdpSocket::bind(&self.udp_host)?;
         udp_socket.set_read_timeout(self.socket_timeout)?;
+        Ok(udp_socket)
+    }
 
-        let mut udp_pipe = TcpUdpPipe::new(tcp_stream, udp_socket);
+    pub fn start(&self) -> std::io::Result<usize> {
+        let tcp_stream = self.tcp_connect()?;
+
+        let udp_socket = self.udp_connect()?;
 
         // we want to wait for first udp packet from client first, to set the target to respond to
-        udp_pipe.udp_to_tcp_connect_socket()?;
+        TcpUdpPipe::new(tcp_stream, udp_socket).shuffle_after_first_udp()
+    }
 
-        let mut udp_pipe_clone = udp_pipe.try_clone()?;
-        thread::spawn(move || loop {
-            udp_pipe_clone
-                .udp_to_tcp()
-                .expect("cannot write to tcp_clone");
-        });
+    pub fn start_tls(&self) -> std::io::Result<usize> {
+        let tcp_stream = self.tcp_connect()?;
 
-        loop {
-            udp_pipe.tcp_to_udp()?;
+        let mut connector = SslConnector::builder(SslMethod::tls()).unwrap().build().configure().unwrap();
+        connector.set_verify_hostname(false);
+        connector.set_verify(SslVerifyMode::NONE);
+        let tcp_stream = connector.connect(self.tcp_target.split(":").next().unwrap(), tcp_stream).unwrap();
+        let tcp_stream = OpensslCell { sess: Arc::new(UnsafeCell::new(tcp_stream)) };
+
+        let udp_socket = self.udp_connect()?;
+
+        // we want to wait for first udp packet from client first, to set the target to respond to
+        TcpUdpPipe::new(tcp_stream, udp_socket).shuffle_after_first_udp()
+    }
+}
+
+
+pub trait TryClone<T> {
+    fn try_clone(&self) -> std::io::Result<T>;
+}
+
+impl TryClone<UdpSocket> for UdpSocket {
+    fn try_clone(&self) -> std::io::Result<UdpSocket> {
+        self.try_clone()
+    }
+}
+
+impl TryClone<TcpStream> for TcpStream {
+    fn try_clone(&self) -> std::io::Result<TcpStream> {
+        self.try_clone()
+    }
+}
+
+impl TryClone<OpensslCell> for OpensslCell {
+    fn try_clone(&self) -> std::io::Result<OpensslCell> {
+        Ok(self.clone())
+    }
+}
+
+pub struct OpensslCell {
+    sess: Arc<UnsafeCell<SslStream<TcpStream>>>,
+}
+
+unsafe impl Sync for OpensslCell {}
+unsafe impl Send for OpensslCell {}
+
+impl Clone for OpensslCell {
+    fn clone(&self) -> Self {
+        OpensslCell {
+            sess: self.sess.clone(),
         }
+    }
+}
+
+impl OpensslCell {
+    pub fn borrow(&self) -> &SslStream<TcpStream> {
+        unsafe {
+            &*self.sess.get()
+        }
+    }
+    pub fn borrow_mut(&self) -> &mut SslStream<TcpStream> {
+        unsafe {
+            &mut *self.sess.get()
+        }
+    }
+}
+
+impl Read for OpensslCell {
+    fn read(&mut self, buf: &mut [u8]) -> Result<usize, std::io::Error> {
+        self.borrow_mut().read(buf)
+    }
+}
+
+impl Write for OpensslCell {
+    fn write(&mut self, buf: &[u8]) -> Result<usize, std::io::Error> {
+        self.borrow_mut().write(buf)
+    }
+
+    fn flush(&mut self) -> Result<(), std::io::Error> {
+        self.borrow_mut().flush()
     }
 }
 
@@ -238,16 +334,6 @@ impl ProxyServerClientHandler {
         udp_socket.set_read_timeout(self.socket_timeout)?;
         udp_socket.connect(&self.udp_target)?;
 
-        let mut udp_pipe = TcpUdpPipe::new(tcp_stream, udp_socket);
-        let mut udp_pipe_clone = udp_pipe.try_clone()?;
-        thread::spawn(move || loop {
-            udp_pipe_clone
-                .udp_to_tcp()
-                .expect("cannot write to tcp_clone");
-        });
-
-        loop {
-            udp_pipe.tcp_to_udp()?;
-        }
+        TcpUdpPipe::new(tcp_stream, udp_socket).shuffle()
     }
 }

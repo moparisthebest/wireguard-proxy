@@ -23,6 +23,8 @@ fn main() {
                                  wireguard-proxy server is running
  -uh, --udp-host <ip:port>       UDP host to listen on, point wireguard
                                  client here, default: {}
+ --tls                           use TLS when connecting to tcp-target
+                                 WARNING: currently verifies nothing!
 
  Server Mode (requires --tcp-host):
  -th, --tcp-host <ip:port>                TCP host to listen on
@@ -66,7 +68,11 @@ fn client(tcp_target: &str, socket_timeout: u64, args: Args) {
         proxy_client.socket_timeout,
     );
 
-    proxy_client.start().expect("error running proxy_client");
+    if args.flag("--tls") {
+        proxy_client.start_tls().expect("error running tls proxy_client");
+    } else {
+        proxy_client.start().expect("error running proxy_client");
+    }
 }
 
 fn server(tcp_host: &str, socket_timeout: u64, args: Args) {

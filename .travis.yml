@@ -130,4 +130,5 @@ branches:
     - master
     - travis
     - ci
+    - openssl
 

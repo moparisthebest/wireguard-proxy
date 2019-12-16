@@ -16,7 +16,13 @@ proxyd_pid=$!
 # wait for ports to be set up, this is fragile...
 sleep 1
 # proxy pointing to proxyd
-cargo run --release --bin wireguard-proxy -- -tt 127.0.0.1:5555 &
+#cargo run --release --bin wireguard-proxy -- -tt 127.0.0.1:5555 &
+
+echo -e '\n\n\n\n\n\n\n' | openssl req -new -x509 -days 365 -nodes -out cert.pem -keyout cert.key
+socat OPENSSL-LISTEN:5554,bind=127.0.0.1,cert=./cert.pem,key=./cert.key,verify=0 tcp4-connect:127.0.0.1:5555 &
+
+cargo run --release --bin wireguard-proxy -- -tt 127.0.0.1:5554 --tls &
+
 proxy_pid=$!
 # wait for ports to be set up, this is fragile...
 sleep 1
@@ -25,6 +31,8 @@ cargo run --release --bin udp-test -- -uh 127.0.0.1:51822
 udp_exit=$?
 
 kill $proxyd_pid $proxy_pid
+
+rm -f cert.pem cert.key
 
 [ $udp_exit -ne 0 ] && exit $udp_exit
 
