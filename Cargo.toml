@@ -20,8 +20,9 @@ include = [
 ]
 
 [features]
-default = ["tls"]
+default = []
 tls = ["openssl"]
+openssl_vendored = ["openssl/vendored"]
 
 [dependencies]
 openssl = { version = "0.10.26", optional = true }

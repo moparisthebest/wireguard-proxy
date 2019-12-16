@@ -8,14 +8,14 @@ use std::time::Duration;
 mod error;
 use error::Result;
 
-#[cfg(feature = "tls")]
+#[cfg(any(feature = "tls", feature = "openssl_vendored"))]
 #[path = ""]
 mod tls {
     pub mod openssl;
     pub use crate::tls::openssl::{TlsStream, TlsListener};
 }
 
-#[cfg(not(feature = "tls"))]
+#[cfg(not(any(feature = "tls", feature = "openssl_vendored")))]
 #[path = ""]
 mod tls {
     pub mod notls;

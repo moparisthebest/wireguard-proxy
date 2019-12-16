@@ -13,6 +13,8 @@ env:
   global:
     # TODO Update this to match the name of your project.
     - CRATE_NAME=wireguard-proxy
+    - OPENSSL_STATIC=1
+    - CARGO_FEATURES=openssl_vendored
 
 matrix:
   # TODO These are all the build jobs. Adjust as necessary. Comment out what you
@@ -28,13 +30,13 @@ matrix:
     # iOS
     - env: TARGET=aarch64-apple-ios DISABLE_TESTS=1
       os: osx
-    - env: TARGET=armv7-apple-ios DISABLE_TESTS=1
+    - env: TARGET=armv7-apple-ios DISABLE_TESTS=1 CARGO_FEATURES=default
       os: osx
-    - env: TARGET=armv7s-apple-ios DISABLE_TESTS=1
+    - env: TARGET=armv7s-apple-ios DISABLE_TESTS=1 CARGO_FEATURES=default
       os: osx
-    - env: TARGET=i386-apple-ios DISABLE_TESTS=1
+    - env: TARGET=i386-apple-ios DISABLE_TESTS=1 CARGO_FEATURES=default
       os: osx
-    - env: TARGET=x86_64-apple-ios DISABLE_TESTS=1
+    - env: TARGET=x86_64-apple-ios DISABLE_TESTS=1 CARGO_FEATURES=default
       os: osx
 
     # Linux
@@ -61,12 +63,14 @@ matrix:
       os: osx
 
     # *BSD
+    # travis-ci freebsd is broken now for some reason
     # - env: TARGET=i686-unknown-freebsd DISABLE_TESTS=1
     # - env: TARGET=x86_64-unknown-freebsd DISABLE_TESTS=1
-    - env: TARGET=x86_64-unknown-netbsd DISABLE_TESTS=1
+    # netbsd fails with vendored openssl, but built in one is fine
+    - env: TARGET=x86_64-unknown-netbsd DISABLE_TESTS=1 CARGO_FEATURES=tls
 
     # Windows
-    - env: TARGET=x86_64-pc-windows-gnu
+    - env: TARGET=x86_64-pc-windows-gnu CARGO_FEATURES=default
 
     # Bare metal
     # These targets don't support std and as such are likely not suitable for

@@ -9,13 +9,18 @@ environment:
 
     # TODO Update this to match the name of your project.
     CRATE_NAME: wireguard-proxy
+    # gnu fails to compile with any openssl combo for some reason
+    OPENSSL_STATIC: 1
+    CARGO_FEATURES: openssl_vendored
 
   # TODO These are all the build jobs. Adjust as necessary. Comment out what you
   # don't need
   matrix:
     # MinGW
     - TARGET: i686-pc-windows-gnu
+      CARGO_FEATURES: default
     - TARGET: x86_64-pc-windows-gnu
+      CARGO_FEATURES: default
 
     # MSVC
     - TARGET: i686-pc-windows-msvc
@@ -23,6 +28,7 @@ environment:
 
     # Testing other channels
     - TARGET: x86_64-pc-windows-gnu
+      CARGO_FEATURES: default
       RUST_VERSION: nightly
     - TARGET: x86_64-pc-windows-msvc
       RUST_VERSION: nightly
@@ -44,15 +50,14 @@ install:
 test_script:
   # we don't run the "test phase" when doing deploys
   - if [%APPVEYOR_REPO_TAG%]==[false] (
-      cargo build --target %TARGET% &&
-      cargo build --target %TARGET% --release &&
-      cargo run --target %TARGET% --release --bin udp-test &&
-      cargo run --target %TARGET% --release --bin udp-test -- -is
+      cargo build --target %TARGET% --release --features %CARGO_FEATURES% &&
+      cargo run --target %TARGET% --release --features %CARGO_FEATURES% --bin udp-test &&
+      cargo run --target %TARGET% --release --features %CARGO_FEATURES% --bin udp-test -- -is
     )
 
 before_deploy:
   # TODO Update this to build the artifacts that matter to you
-  - cargo rustc --target %TARGET% --release --bin wireguard-proxy -- -C lto
+  - cargo rustc --target %TARGET% --release --features %CARGO_FEATURES% --bin wireguard-proxy -- -C lto
   - ps: ci\before_deploy.ps1
 
 deploy:
