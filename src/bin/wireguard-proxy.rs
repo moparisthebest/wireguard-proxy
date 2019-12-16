@@ -36,6 +36,10 @@ fn main() {
                                           listen on for UDP packets to send
                                           back over the TCP connection,
                                           default: 127.0.0.1:30000-40000
+ -tk, --tls-key <ip:port>                 TLS key to listen with,
+                                          requires --tls-cert also
+ -tc, --tls-cert <ip:port>                TLS cert to listen with,
+                                          requires --tls-key also
 
  Common Options:
  -h, --help                      print this usage text
@@ -61,15 +65,18 @@ fn client(tcp_target: &str, socket_timeout: u64, args: Args) {
         socket_timeout,
     );
 
+    let tls = args.flag("--tls");
+
     println!(
-        "udp_host: {}, tcp_target: {}, socket_timeout: {:?}",
+        "udp_host: {}, tcp_target: {}, socket_timeout: {:?}, tls: {}",
         proxy_client.udp_host,
         proxy_client.tcp_target,
         proxy_client.socket_timeout,
+        tls,
     );
 
-    if args.flag("--tls") {
-        proxy_client.start_tls().expect("error running tls proxy_client");
+    if tls {
+        proxy_client.start_tls(tcp_target.split(":").next().expect("cannot extract hostname from --tcp-target")).expect("error running tls proxy_client");
     } else {
         proxy_client.start().expect("error running proxy_client");
     }
@@ -107,12 +114,23 @@ fn server(tcp_host: &str, socket_timeout: u64, args: Args) {
         socket_timeout,
     );
 
+    let tls_key = args.get_option(&["-tk", "--tls-key"]);
+    let tls_cert = args.get_option(&["-tc", "--tls-cert"]);
+
     println!(
-        "udp_target: {}, udp_bind_host_range: {}, socket_timeout: {:?}",
+        "udp_target: {}, udp_bind_host_range: {}, socket_timeout: {:?}, tls_key: {:?}, tls_cert: {:?}",
         proxy_server.client_handler.udp_target,
         udp_bind_host_range_str,
         proxy_server.client_handler.socket_timeout,
+        tls_key,
+        tls_cert,
     );
 
-    proxy_server.start().expect("error running proxy_server");
+    if tls_key.is_some() && tls_cert.is_some() {
+        proxy_server.start_tls(tls_key.unwrap(), tls_cert.unwrap()).expect("error running TLS proxy_server");
+    } else if tls_key.is_none() && tls_cert.is_none() {
+        proxy_server.start().expect("error running proxy_server");
+    } else {
+        println!("Error: if one of --tls-key or --tls-cert is specified both must be!");
+    }
 }
