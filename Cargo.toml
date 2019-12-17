@@ -23,6 +23,7 @@ include = [
 default = []
 tls = ["openssl"]
 openssl_vendored = ["openssl/vendored"]
+verbose = []
 
 [dependencies]
 openssl = { version = "0.10.26", optional = true }

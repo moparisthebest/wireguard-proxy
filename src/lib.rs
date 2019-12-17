@@ -111,13 +111,11 @@ impl<T: Write + Read + TryClone<T> + Send + 'static> TcpUdpPipe<T> {
     }
 
     fn send_udp(&mut self, len: usize) -> Result<()> {
+        #[cfg(feature = "verbose")]
         println!("udp got len: {}", len);
 
         self.buf[0] = ((len >> 8) & 0xFF) as u8;
         self.buf[1] = (len & 0xFF) as u8;
-
-        //let test_len = ((self.buf[0] as usize) << 8) + self.buf[1] as usize;
-        //println!("tcp sending test_len: {}", test_len);
 
         Ok(self.tcp_stream.write_all(&self.buf[..len + 2])?)
         // todo: do this? self.tcp_stream.flush()
@@ -126,8 +124,10 @@ impl<T: Write + Read + TryClone<T> + Send + 'static> TcpUdpPipe<T> {
     pub fn tcp_to_udp(&mut self) -> Result<usize> {
         self.tcp_stream.read_exact(&mut self.buf[..2])?;
         let len = ((self.buf[0] as usize) << 8) + self.buf[1] as usize;
+        #[cfg(feature = "verbose")]
         println!("tcp expecting len: {}", len);
         self.tcp_stream.read_exact(&mut self.buf[..len])?;
+        #[cfg(feature = "verbose")]
         println!("tcp got len: {}", len);
         Ok(self.udp_socket.send(&self.buf[..len])?)
 
