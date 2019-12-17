@@ -19,7 +19,13 @@ usage: wireguard-proxy [options...]
  -uh, --udp-host <ip:port>       UDP host to listen on, point wireguard
                                  client here, default: 127.0.0.1:51820
  --tls                           use TLS when connecting to tcp-target
-                                 WARNING: currently verifies nothing!
+                                 WARNING: authenticates/verifies nothing
+                                 without --pinnedpubkey below!!
+ --pinnedpubkey <sha256_hashes>  Public key to verify peer against,
+                                 format is any number of base64 encoded
+                                 sha256 hashes preceded by "sha256//"
+                                 and separated by ";". Identical to curl's
+                                 --pinnedpubkey and CURLOPT_PINNEDPUBLICKEY
  --tls-hostname                  send this in SNI instead of host
                                  from --tcp-target, useful for avoiding
                                  DNS lookup on connect

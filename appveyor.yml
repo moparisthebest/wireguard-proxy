@@ -54,8 +54,10 @@ test_script:
       cargo run --target %TARGET% --release --features %CARGO_FEATURES% --bin udp-test &&
       cargo run --target %TARGET% --release --features %CARGO_FEATURES% --bin udp-test -- -is
     )
+  # todo: should run --pinnedpubkey test here where we expect failure, but unsure how to do that with windows, help?
   - if [%CARGO_FEATURES%]==[openssl_vendored] (
-    cargo run --target %TARGET% --release --features %CARGO_FEATURES% --bin udp-test -- -is --tls-key ci/cert.key --tls-cert ci/cert.pem
+    cargo run --target %TARGET% --release --features %CARGO_FEATURES% --bin udp-test -- -is --tls-key ci/cert.key --tls-cert ci/cert.pem &&
+    cargo run --target %TARGET% --release --features %CARGO_FEATURES% --bin udp-test -- -is --tls-key ci/cert.key --tls-cert ci/cert.pem --pinnedpubkey sha256//BEyQeSjwwUBLXXNuCILHRWyV1gLmY31CdMHNA4VH4dE=
     )
 
 before_deploy:

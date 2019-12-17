@@ -25,11 +25,38 @@ impl TlsStream {
             sess: Arc::new(UnsafeCell::new(stream))
         }
     }
-    pub fn client(host_name: &str, tcp_stream: TcpStream) -> Result<TlsStream> {
+    pub fn client(hostname: Option<&str>, pinnedpubkey: Option<&str>, tcp_stream: TcpStream) -> Result<TlsStream> {
         let mut connector = SslConnector::builder(SslMethod::tls())?.build().configure()?;
+        connector.set_use_server_name_indication(hostname.is_some());
         connector.set_verify_hostname(false);
         connector.set_verify(SslVerifyMode::NONE);
-        let tcp_stream = connector.connect(host_name, tcp_stream)?;
+        if pinnedpubkey.is_some() {
+            let pinnedpubkey = pinnedpubkey.unwrap().to_owned();
+            connector.set_verify_callback(SslVerifyMode::PEER, move|_preverify_ok, x509_store_ctx| {
+                //println!("preverify_ok: {}", preverify_ok);
+                let cert = x509_store_ctx.current_cert().expect("could not get TLS cert");
+                let pubkey = cert.public_key().expect("could not get public key from TLS cert");
+                let pubkey = pubkey.public_key_to_der().expect("could not get TLS public key bytes");
+                //println!("pubkey.len(): {}", pubkey.len());
+
+                let mut sha256 = openssl::sha::Sha256::new();
+                sha256.update(&pubkey);
+                let pubkey = sha256.finish();
+
+                let pubkey = ["sha256//", &openssl::base64::encode_block(&pubkey)].join("");
+                println!("pubkey from cert: {}", pubkey);
+
+                for key in pinnedpubkey.split(";") {
+                    if key == pubkey {
+                        println!("SUCCESS: pubkey match found!",);
+                        return true;
+                    }
+                }
+                println!("ERROR: pubkey match not found!");
+                false
+            });
+        }
+        let tcp_stream = connector.connect(hostname.unwrap_or(""), tcp_stream)?;
         Ok(TlsStream::new(tcp_stream))
     }
 }

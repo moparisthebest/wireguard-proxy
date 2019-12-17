@@ -10,7 +10,7 @@ fn err() -> Error {
 pub struct TlsStream;
 
 impl TlsStream {
-    pub fn client(_host_name: &str, _tcp_stream: TcpStream) -> Result<TlsStream> {
+    pub fn client(_hostname: Option<&str>, _pinnedpubkey: Option<&str>, _tcp_stream: TcpStream) -> Result<TlsStream> {
         Err(err())
     }
 }

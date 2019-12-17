@@ -19,6 +19,14 @@ main() {
     if [ $CARGO_FEATURES != "default" ]; then
         # run TLS tests then too
         cross run --target $TARGET --release --features $CARGO_FEATURES --bin udp-test -- -is --tls-key ci/cert.key --tls-cert ci/cert.pem
+
+        # now pubkey tests
+
+        # one that should fail (wrong pinnedpubkey lowercase e at end instead of uppercase E)
+        cross run --target $TARGET --release --features $CARGO_FEATURES --bin udp-test -- -is --tls-key ci/cert.key --tls-cert ci/cert.pem --pinnedpubkey sha256//BEyQeSjwwUBLXXNuCILHRWyV1gLmY31CdMHNA4VH4de= && exit 1 || true
+
+        # and one that should pass
+        cross run --target $TARGET --release --features $CARGO_FEATURES --bin udp-test -- -is --tls-key ci/cert.key --tls-cert ci/cert.pem --pinnedpubkey sha256//BEyQeSjwwUBLXXNuCILHRWyV1gLmY31CdMHNA4VH4dE=
     fi
 }
 

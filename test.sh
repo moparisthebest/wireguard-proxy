@@ -60,4 +60,14 @@ run_tests || exit 1
 # then TLS tests
 run_tests --tls --tls-key ci/cert.key --tls-cert ci/cert.pem || exit 1
 
+# now pubkey tests
+
+# these should fail
+udp-test -s --tls-key ci/cert.key --tls-cert ci/cert.pem --pinnedpubkey sha256//BEyQeSjwwUBLXXNuCILHRWyV1gLmY31CdMHNA4VH4de= && exit 1
+udp-test -is --tls-key ci/cert.key --tls-cert ci/cert.pem --pinnedpubkey sha256//BEyQeSjwwUBLXXNuCILHRWyV1gLmY31CdMHNA4VH4de= && exit 1
+
+# these should pass
+udp-test -s --tls-key ci/cert.key --tls-cert ci/cert.pem --pinnedpubkey sha256//BEyQeSjwwUBLXXNuCILHRWyV1gLmY31CdMHNA4VH4dE= || exit 1
+udp-test -is --tls-key ci/cert.key --tls-cert ci/cert.pem --pinnedpubkey sha256//BEyQeSjwwUBLXXNuCILHRWyV1gLmY31CdMHNA4VH4dE= || exit 1
+
 exit 0

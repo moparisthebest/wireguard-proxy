@@ -75,6 +75,7 @@ fn main() {
 
     let tls_key = args.get_option(&["-tk", "--tls-key"]);
     let tls_cert = args.get_option(&["-tc", "--tls-cert"]);
+    let pinnedpubkey = args.get_option(&["--pinnedpubkey"]);
 
     let tls = if tls_key.is_some() && tls_cert.is_some() {
         true
@@ -98,10 +99,15 @@ fn main() {
                                  before terminating, default: {}
 
  TLS option for self tests only, otherwise self tests are plaintext only:
- -tk, --tls-key <ip:port>                 TLS key to listen with,
-                                          requires --tls-cert also
- -tc, --tls-cert <ip:port>                TLS cert to listen with,
-                                          requires --tls-key also
+ -tk, --tls-key <ip:port>        TLS key to listen with,
+                                 requires --tls-cert also
+ -tc, --tls-cert <ip:port>       TLS cert to listen with,
+                                 requires --tls-key also
+ --pinnedpubkey <sha256_hashes>  Public key to verify peer against,
+                                 format is any number of base64 encoded
+                                 sha256 hashes preceded by "sha256//"
+                                 and separated by ";". Identical to curl's
+                                 --pinnedpubkey and CURLOPT_PINNEDPUBLICKEY
         "#, default_udp_host_target, default_udp_host_target, default_socket_timeout);
         return;
     } else if args.flag("-s") || args.flag("--self-test") {
@@ -113,50 +119,37 @@ fn main() {
         let udp_test = args.get_str_idx(0, "udp-test");
         let proxy = udp_test.clone().replace("udp-test", "wireguard-proxy");
 
-        let mut proxyd = if tls {
+        let mut proxyd_args = vec!["-th", tcp_host, "-ut", host];
+
+        if tls {
             let tls_key = tls_key.unwrap();
             let tls_cert = tls_cert.unwrap();
-            println!("executing: {} -th '{}' -ut '{}' -tk '{}' -tc '{}'", proxy, tcp_host, host, tls_key, tls_cert);
-            Command::new(proxy.clone())
-                .arg("-th")
-                .arg(tcp_host)
-                .arg("-ut")
-                .arg(host)
-                .arg("-tk")
-                .arg(tls_key)
-                .arg("-tc")
-                .arg(tls_cert)
+            proxyd_args.extend(["-tk", tls_key, "-tc", tls_cert].iter().cloned());
+        }
+
+        println!("executing: {} {}", proxy, proxyd_args.join(" "));
+        let mut proxyd = Command::new(proxy.clone())
+                .args(&proxyd_args)
                 .spawn()
-                .expect("wireguard-proxy TLS server failed to launch")
-        } else {
-            println!("executing: {} -th '{}' -ut '{}'", proxy, tcp_host, host);
-            Command::new(proxy.clone())
-                .arg("-th")
-                .arg(tcp_host)
-                .arg("-ut")
-                .arg(host)
-                .spawn()
-                .expect("wireguard-proxy server failed to launch")
-        };
+                .expect("wireguard-proxy server failed to launch");
         println!("waiting: {:?} for wireguard-proxy server to come up.....", sleep);
         thread::sleep(sleep);
 
-        let mut proxy = if tls {
-            println!("executing: {} -tt {} --tls", proxy, tcp_host);
-            Command::new(proxy)
-                .arg("-tt")
-                .arg(tcp_host)
-                .arg("--tls")
+        let mut proxy_args = vec!["-tt", tcp_host];
+
+        if tls {
+            proxy_args.push("--tls");
+            if pinnedpubkey.is_some() {
+                proxy_args.push("--pinnedpubkey");
+                proxy_args.push(pinnedpubkey.unwrap());
+            }
+        }
+
+        println!("executing: {} {}", proxy, proxy_args.join(" "));
+        let mut proxy = Command::new(proxy)
+                .args(proxy_args)
                 .spawn()
-                .expect("wireguard-proxy TLS client failed to launch")
-        } else {
-            println!("executing: {} -tt {}", proxy, tcp_host);
-            Command::new(proxy)
-                .arg("-tt")
-                .arg(tcp_host)
-                .spawn()
-                .expect("wireguard-proxy client failed to launch")
-        };
+                .expect("wireguard-proxy TLS client failed to launch");
         println!("waiting: {:?} for wireguard-proxy client to come up.....", sleep);
         thread::sleep(sleep);
 
@@ -226,9 +219,17 @@ fn main() {
         );
 
         if tls {
-            println!("executing: wireguard-proxy -tt {} --tls", tcp_host);
-            let hostname = tcp_host.split(":").next().expect("cannot extract hostname from tcp_host");
-            thread::spawn(move || proxy_client.start_tls(hostname).expect("error running proxy_client"));
+            let hostname = tcp_host.split(":").next();
+            match pinnedpubkey {
+                Some(pinnedpubkey) =>
+                    println!("executing: wireguard-proxy -tt {} --tls --pinnedpubkey {}", tcp_host, pinnedpubkey),
+                None =>
+                    println!("executing: wireguard-proxy -tt {} --tls", tcp_host),
+            }
+            // this is a little funky, is this the only way to do it?
+            let pinnedpubkey = pinnedpubkey.map(&str::to_owned);
+            // can use pinnedpubkey.as_deref() below when it's stabilized
+            thread::spawn(move || proxy_client.start_tls(hostname, pinnedpubkey.as_ref().map(String::as_str)).expect("error running proxy_client"));
         } else {
             println!("executing: wireguard-proxy -tt {}", tcp_host);
             thread::spawn(move || proxy_client.start().expect("error running proxy_client"));

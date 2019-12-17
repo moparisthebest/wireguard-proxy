@@ -188,10 +188,10 @@ impl ProxyClient {
         TcpUdpPipe::new(tcp_stream, udp_socket).shuffle_after_first_udp()
     }
 
-    pub fn start_tls(&self, hostname: &str) -> Result<usize> {
+    pub fn start_tls(&self, hostname: Option<&str>, pinnedpubkey: Option<&str>) -> Result<usize> {
         let tcp_stream = self.tcp_connect()?;
 
-        let tcp_stream = TlsStream::client(hostname, tcp_stream)?;
+        let tcp_stream = TlsStream::client(hostname, pinnedpubkey, tcp_stream)?;
 
         let udp_socket = self.udp_connect()?;
 

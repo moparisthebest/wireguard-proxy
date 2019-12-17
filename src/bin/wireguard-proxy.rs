@@ -24,7 +24,13 @@ fn main() {
  -uh, --udp-host <ip:port>       UDP host to listen on, point wireguard
                                  client here, default: {}
  --tls                           use TLS when connecting to tcp-target
-                                 WARNING: currently verifies nothing!
+                                 WARNING: authenticates/verifies nothing
+                                 without --pinnedpubkey below!!
+ --pinnedpubkey <sha256_hashes>  Public key to verify peer against,
+                                 format is any number of base64 encoded
+                                 sha256 hashes preceded by "sha256//"
+                                 and separated by ";". Identical to curl's
+                                 --pinnedpubkey and CURLOPT_PINNEDPUBLICKEY
  --tls-hostname                  send this in SNI instead of host
                                  from --tcp-target, useful for avoiding
                                  DNS lookup on connect
@@ -79,9 +85,9 @@ fn client(tcp_target: &str, socket_timeout: u64, args: Args) {
     );
 
     if tls {
-        let hostname = args.get_option(&["--tls-hostname"]).or_else(|| tcp_target.split(":").next())
-            .expect("--tls-hostname not set and cannot extract hostname from --tcp-target");
-        proxy_client.start_tls(hostname).expect("error running tls proxy_client");
+        let hostname = args.get_option(&["--tls-hostname"]).or_else(|| tcp_target.split(":").next());
+        let pinnedpubkey = args.get_option(&["--pinnedpubkey"]);
+        proxy_client.start_tls(hostname, pinnedpubkey).expect("error running tls proxy_client");
     } else {
         proxy_client.start().expect("error running proxy_client");
     }
