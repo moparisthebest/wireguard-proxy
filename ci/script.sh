@@ -15,6 +15,11 @@ main() {
 
     # now run udp-test through proxy/proxyd
     cross run --target $TARGET --release --features $CARGO_FEATURES --bin udp-test -- -is
+
+    if [ $CARGO_FEATURES != "default" ]; then
+        # run TLS tests then too
+        cross run --target $TARGET --release --features $CARGO_FEATURES --bin udp-test -- -is --tls-key ci/cert.key --tls-cert ci/cert.pem
+    fi
 }
 
 # we don't run the "test phase" when doing deploys

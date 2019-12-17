@@ -54,6 +54,9 @@ test_script:
       cargo run --target %TARGET% --release --features %CARGO_FEATURES% --bin udp-test &&
       cargo run --target %TARGET% --release --features %CARGO_FEATURES% --bin udp-test -- -is
     )
+  - if [%CARGO_FEATURES%]==[openssl_vendored] (
+    cargo run --target %TARGET% --release --features %CARGO_FEATURES% --bin udp-test -- -is --tls-key ci/cert.key --tls-cert ci/cert.pem
+    )
 
 before_deploy:
   # TODO Update this to build the artifacts that matter to you

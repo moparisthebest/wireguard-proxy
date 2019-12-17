@@ -72,8 +72,21 @@ fn main() {
     let args = Args::new(&raw_args);
     let default_udp_host_target = "127.0.0.1:51820";
     let default_socket_timeout = 10;
+
+    let tls_key = args.get_option(&["-tk", "--tls-key"]);
+    let tls_cert = args.get_option(&["-tc", "--tls-cert"]);
+
+    let tls = if tls_key.is_some() && tls_cert.is_some() {
+        true
+    } else if tls_key.is_none() && tls_cert.is_none() {
+        false
+    } else {
+        println!("Error: if one of --tls-key or --tls-cert is specified both must be!");
+        exit(1);
+    };
+
     let mut first_arg = args.get_str(&["-uh", "--udp-host"], default_udp_host_target);
-    if args.flag("-h") || args.flag("--help"){
+    if args.flag("-h") || args.flag("--help") {
         println!(r#"usage: udp-test [options...]
  -h, --help                      print this usage text
  -s, --self-test                 run a self test through proxy
@@ -83,6 +96,12 @@ fn main() {
  -ut, --udp-target <ip:port>     UDP target to send packets to, default: {}
  -st, --socket-timeout <seconds> Socket timeout (time to wait for data)
                                  before terminating, default: {}
+
+ TLS option for self tests only, otherwise self tests are plaintext only:
+ -tk, --tls-key <ip:port>                 TLS key to listen with,
+                                          requires --tls-cert also
+ -tc, --tls-cert <ip:port>                TLS cert to listen with,
+                                          requires --tls-key also
         "#, default_udp_host_target, default_udp_host_target, default_socket_timeout);
         return;
     } else if args.flag("-s") || args.flag("--self-test") {
@@ -94,23 +113,50 @@ fn main() {
         let udp_test = args.get_str_idx(0, "udp-test");
         let proxy = udp_test.clone().replace("udp-test", "wireguard-proxy");
 
-        println!("executing: {} -th '{}' -ut '{}'", proxy, tcp_host, host);
-        let mut proxyd = Command::new(proxy.clone())
-            .arg("-th")
-            .arg(tcp_host)
-            .arg("-ut")
-            .arg(host)
-            .spawn()
-            .expect("wireguard-proxy server failed to launch");
+        let mut proxyd = if tls {
+            let tls_key = tls_key.unwrap();
+            let tls_cert = tls_cert.unwrap();
+            println!("executing: {} -th '{}' -ut '{}' -tk '{}' -tc '{}'", proxy, tcp_host, host, tls_key, tls_cert);
+            Command::new(proxy.clone())
+                .arg("-th")
+                .arg(tcp_host)
+                .arg("-ut")
+                .arg(host)
+                .arg("-tk")
+                .arg(tls_key)
+                .arg("-tc")
+                .arg(tls_cert)
+                .spawn()
+                .expect("wireguard-proxy TLS server failed to launch")
+        } else {
+            println!("executing: {} -th '{}' -ut '{}'", proxy, tcp_host, host);
+            Command::new(proxy.clone())
+                .arg("-th")
+                .arg(tcp_host)
+                .arg("-ut")
+                .arg(host)
+                .spawn()
+                .expect("wireguard-proxy server failed to launch")
+        };
         println!("waiting: {:?} for wireguard-proxy server to come up.....", sleep);
         thread::sleep(sleep);
 
-        println!("executing: {} -tt {}", proxy, tcp_host);
-        let mut proxy = Command::new(proxy)
-            .arg("-tt")
-            .arg(tcp_host)
-            .spawn()
-            .expect("wireguard-proxy client failed to launch");
+        let mut proxy = if tls {
+            println!("executing: {} -tt {} --tls", proxy, tcp_host);
+            Command::new(proxy)
+                .arg("-tt")
+                .arg(tcp_host)
+                .arg("--tls")
+                .spawn()
+                .expect("wireguard-proxy TLS client failed to launch")
+        } else {
+            println!("executing: {} -tt {}", proxy, tcp_host);
+            Command::new(proxy)
+                .arg("-tt")
+                .arg(tcp_host)
+                .spawn()
+                .expect("wireguard-proxy client failed to launch")
+        };
         println!("waiting: {:?} for wireguard-proxy client to come up.....", sleep);
         thread::sleep(sleep);
 
@@ -154,14 +200,21 @@ fn main() {
             proxy_server.client_handler.udp_target, proxy_server.client_handler.socket_timeout,
         );
 
-        println!("executing: wireguard-proxy -th '{}' -ut '{}'", tcp_host, host);
-        thread::spawn(move || proxy_server.start().expect("error running proxy_server"));
+        if tls {
+            let tls_key = tls_key.unwrap().to_owned();
+            let tls_cert = tls_cert.unwrap().to_owned();
+            println!("executing: wireguard-proxy -th '{}' -ut '{}' -tk '{}' -tc '{}'", tcp_host, host, tls_key, tls_cert);
+            thread::spawn(move || proxy_server.start_tls(&tls_key, &tls_cert).expect("error running TLS proxy_server"));
+        } else {
+            println!("executing: wireguard-proxy -th '{}' -ut '{}'", tcp_host, host);
+            thread::spawn(move || proxy_server.start().expect("error running proxy_server"));
+        }
         println!("waiting: {:?} for wireguard-proxy server to come up.....", sleep);
         thread::sleep(sleep);
 
         let proxy_client = ProxyClient::new(
             "127.0.0.1:51820".to_owned(),
-            tcp_host.to_owned().to_owned(),
+            tcp_host.to_owned(),
             15,
         );
 
@@ -172,8 +225,14 @@ fn main() {
             proxy_client.socket_timeout,
         );
 
-        println!("executing: wireguard-proxy -tt {}", tcp_host);
-        thread::spawn(move || proxy_client.start().expect("error running proxy_client"));
+        if tls {
+            println!("executing: wireguard-proxy -tt {} --tls", tcp_host);
+            let hostname = tcp_host.split(":").next().expect("cannot extract hostname from tcp_host");
+            thread::spawn(move || proxy_client.start_tls(hostname).expect("error running proxy_client"));
+        } else {
+            println!("executing: wireguard-proxy -tt {}", tcp_host);
+            thread::spawn(move || proxy_client.start().expect("error running proxy_client"));
+        }
         println!("waiting: {:?} for wireguard-proxy client to come up.....", sleep);
         thread::sleep(sleep);
 
