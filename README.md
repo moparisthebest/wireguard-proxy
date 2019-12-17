@@ -1,7 +1,7 @@
 # wireguard-proxy
 
 [![Travis-CI Build Status](https://api.travis-ci.org/moparisthebest/wireguard-proxy.svg?branch=master)](https://travis-ci.org/moparisthebest/wireguard-proxy)
-[![Build status](https://ci.appveyor.com/api/projects/status/vl8c9xdhvgn997d2/branch/master?svg=true)](https://ci.appveyor.com/project/moparisthebest/wireguard-proxy/branch/master)
+[![Build status](https://ci.appveyor.com/api/projects/status/vl8c9xdhvgn997d2/branch/master?svg=true)](https://ci.appveyor.com/project/moparisthebest/wireguard-proxy)
 [![crates.io](https://img.shields.io/crates/v/wireguard-proxy.svg)](https://crates.io/crates/wireguard-proxy)
 
 Proxy wireguard UDP packets over TCP/TLS
@@ -20,6 +20,9 @@ usage: wireguard-proxy [options...]
                                  client here, default: 127.0.0.1:51820
  --tls                           use TLS when connecting to tcp-target
                                  WARNING: currently verifies nothing!
+ --tls-hostname                  send this in SNI instead of host
+                                 from --tcp-target, useful for avoiding
+                                 DNS lookup on connect
 
  Server Mode (requires --tcp-host):
  -th, --tcp-host <ip:port>                TCP host to listen on

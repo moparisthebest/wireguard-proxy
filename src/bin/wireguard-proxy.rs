@@ -25,6 +25,9 @@ fn main() {
                                  client here, default: {}
  --tls                           use TLS when connecting to tcp-target
                                  WARNING: currently verifies nothing!
+ --tls-hostname                  send this in SNI instead of host
+                                 from --tcp-target, useful for avoiding
+                                 DNS lookup on connect
 
  Server Mode (requires --tcp-host):
  -th, --tcp-host <ip:port>                TCP host to listen on
@@ -76,7 +79,9 @@ fn client(tcp_target: &str, socket_timeout: u64, args: Args) {
     );
 
     if tls {
-        proxy_client.start_tls(tcp_target.split(":").next().expect("cannot extract hostname from --tcp-target")).expect("error running tls proxy_client");
+        let hostname = args.get_option(&["--tls-hostname"]).or_else(|| tcp_target.split(":").next())
+            .expect("--tls-hostname not set and cannot extract hostname from --tcp-target");
+        proxy_client.start_tls(hostname).expect("error running tls proxy_client");
     } else {
         proxy_client.start().expect("error running proxy_client");
     }
