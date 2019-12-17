@@ -3,17 +3,7 @@
 set -ex
 
 main() {
-    local src=$(pwd) \
-          stage=
-
-    case $TRAVIS_OS_NAME in
-        linux)
-            stage=$(mktemp -d)
-            ;;
-        osx)
-            stage=$(mktemp -d -t tmp)
-            ;;
-    esac
+    local src=$(pwd)
 
     test -f Cargo.lock || cargo generate-lockfile
 
@@ -24,19 +14,13 @@ main() {
     case $TARGET in
         x86_64-pc-windows-gnu)
             strip target/$TARGET/release/wireguard-proxy.exe || echo 'strip failed, ignoring...'
-            cp target/$TARGET/release/wireguard-proxy.exe $stage/
+            cp target/$TARGET/release/wireguard-proxy.exe $src/$CRATE_NAME-$TRAVIS_TAG-$TARGET.exe
             ;;
         *)
             strip target/$TARGET/release/wireguard-proxy || echo 'strip failed, ignoring...'
-            cp target/$TARGET/release/wireguard-proxy $stage/
+            cp target/$TARGET/release/wireguard-proxy $src/$CRATE_NAME-$TRAVIS_TAG-$TARGET
             ;;
     esac
-
-    cd $stage
-    tar czf $src/$CRATE_NAME-$TRAVIS_TAG-$TARGET.tar.gz *
-    cd $src
-
-    rm -rf $stage
 }
 
 main

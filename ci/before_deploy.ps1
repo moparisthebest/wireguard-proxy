@@ -8,12 +8,10 @@ Set-Location $ENV:Temp
 New-Item -Type Directory -Name $STAGE
 Set-Location $STAGE
 
-$ZIP = "$SRC_DIR\$($Env:CRATE_NAME)-$($Env:APPVEYOR_REPO_TAG_NAME)-$($Env:TARGET).zip"
+$ZIP = "$SRC_DIR\$($Env:CRATE_NAME)-$($Env:APPVEYOR_REPO_TAG_NAME)-$($Env:TARGET).exe"
 
 # TODO Update this to package the right artifacts
-Copy-Item "$SRC_DIR\target\$($Env:TARGET)\release\wireguard-proxy.exe" '.\'
-
-7z a "$ZIP" *
+Copy-Item "$SRC_DIR\target\$($Env:TARGET)\release\wireguard-proxy.exe" "$ZIP"
 
 Push-AppveyorArtifact "$ZIP"
 
