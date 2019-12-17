@@ -50,6 +50,22 @@ impl Server {
         assert_eq!(sent, PONG.len());
 
         let mut buf = [0u8; 2048];
+        match udp_socket.recv_from(&mut buf) {
+            Ok((len, src_addr)) => {
+                println!("udp got len: {} from src_addr: {}", len, src_addr);
+                assert_eq!(len, PONG.len());
+                assert_eq!(&buf[..len], &PONG[..]);
+
+                // now reply back to src_addr to make sure other direction works
+                let sent = udp_socket.send_to(&PONG, &src_addr)?;
+                assert_eq!(sent, PONG.len());
+            }
+            Err(e) => {
+                panic!("recv function failed first round: {:?}", e);
+            }
+        }
+
+        // if we are here, we successfully sent the reply, did we get it back?
         match udp_socket.recv(&mut buf) {
             Ok(len) => {
                 println!("udp got len: {}", len);
@@ -57,11 +73,11 @@ impl Server {
                 assert_eq!(&buf[..len], &PONG[..]);
             }
             Err(e) => {
-                panic!("recv function failed: {:?}", e);
+                panic!("recv function failed second round: {:?}", e);
             }
         }
 
-        println!("success! received back exactly what we sent!");
+        println!("success! received back exactly what we sent both ways!");
 
         Ok(0)
     }
