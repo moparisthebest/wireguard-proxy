@@ -54,6 +54,18 @@ fn main() {
  -h, --help                      print this usage text
  -st, --socket-timeout <seconds> Socket timeout (time to wait for data)
                                  before terminating, default: {}
+
+ Environment variable support:
+ For every command line option, short and long, if you replace all
+ leading - with WGP_, and replace all remaining - with _, and uppercase
+ the whole thing, if you don't specify that command line option we will
+ read that environment variable for the argument. boolean arguments are
+ true if anything but unset, empty, 0, or false.
+ Examples:
+   --tcp-target ARG is WGP_TCP_TARGET=ARG
+   --socket-timeout 5 is WGP_SOCKET_TIMEOUT=5
+   --tls is WGP_TLS=1 or WGP_TLS=true
+   WGP_TLS=0 or WGP_TLS=false would be like not sending --tls
         "#, default_udp_host_target, default_udp_host_target, default_socket_timeout);
         return;
     }
@@ -61,9 +73,9 @@ fn main() {
     let socket_timeout = args.get(&["-st", "--socket-timeout"], default_socket_timeout);
 
     if tcp_target.is_some() {
-        client(tcp_target.unwrap(), socket_timeout, args);
+        client(&tcp_target.unwrap(), socket_timeout, args);
     } else {
-        server(tcp_host.unwrap(), socket_timeout, args);
+        server(&tcp_host.unwrap(), socket_timeout, args);
     }
 }
 
@@ -85,9 +97,9 @@ fn client(tcp_target: &str, socket_timeout: u64, args: Args) {
     );
 
     if tls {
-        let hostname = args.get_option(&["--tls-hostname"]).or_else(|| tcp_target.split(":").next());
+        let hostname = args.get_option(&["--tls-hostname"]).or_else(|| tcp_target.split(":").next().map(&str::to_owned));
         let pinnedpubkey = args.get_option(&["--pinnedpubkey"]);
-        proxy_client.start_tls(hostname, pinnedpubkey).expect("error running tls proxy_client");
+        proxy_client.start_tls(hostname.as_ref().map(String::as_str), pinnedpubkey.as_ref().map(String::as_str)).expect("error running tls proxy_client");
     } else {
         proxy_client.start().expect("error running proxy_client");
     }
@@ -138,7 +150,7 @@ fn server(tcp_host: &str, socket_timeout: u64, args: Args) {
     );
 
     if tls_key.is_some() && tls_cert.is_some() {
-        proxy_server.start_tls(tls_key.unwrap(), tls_cert.unwrap()).expect("error running TLS proxy_server");
+        proxy_server.start_tls(&tls_key.unwrap(), &tls_cert.unwrap()).expect("error running TLS proxy_server");
     } else if tls_key.is_none() && tls_cert.is_none() {
         proxy_server.start().expect("error running proxy_server");
     } else {

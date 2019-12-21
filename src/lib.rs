@@ -24,6 +24,25 @@ mod tls {
 
 use tls::{TlsStream, TlsListener};
 
+fn arg_to_env<'a>(arg: &'a str) -> String {
+    let env = "WGP_".to_owned();
+    let mut env = env + &arg.trim_matches('-').replace("-", "_");
+    env.make_ascii_uppercase();
+    env
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_arg_to_env() {
+        assert_eq!(arg_to_env("--tcp-host"), "WGP_TCP_HOST");
+        assert_eq!(arg_to_env("--tls"), "WGP_TLS");
+        assert_eq!(arg_to_env("-h"), "WGP_H");
+    }
+}
+
 pub struct Args<'a> {
     args: &'a Vec<String>,
 }
@@ -33,26 +52,40 @@ impl<'a> Args<'a> {
         Args { args }
     }
     pub fn flag(&self, flag: &'a str) -> bool {
-        self.args.contains(&flag.to_owned())
+        if self.args.contains(&flag.to_owned()) {
+            return true;
+        }
+        // because env we want slightly special handling of empty/0/false
+        match std::env::var(arg_to_env(flag)) {
+            Ok(env) => &env != "" && &env != "0" && &env != "false",
+            Err(_) => false,
+        }
     }
-    pub fn get_option(&self, flags: &[&'a str]) -> Option<&'a str> {
+    pub fn get_option(&self, flags: &[&'a str]) -> Option<String> {
         for flag in flags.iter() {
             let mut found = false;
             for arg in self.args.iter() {
                 if found {
-                    return Some(arg);
+                    return Some(arg.to_owned());
                 }
                 if arg == flag {
                     found = true;
                 }
             }
         }
+        // no matching arguments are found, so check env variables as a fallback
+        for flag in flags.iter() {
+            let env = std::env::var(arg_to_env(flag)).ok();
+            if env.is_some() {
+                return env;
+            }
+        }
         return None;
     }
-    pub fn get_str(&self, flags: &[&'a str], def: &'a str) -> &'a str {
+    pub fn get_str(&self, flags: &[&'a str], def: &'a str) -> String {
         match self.get_option(flags) {
             Some(ret) => ret,
-            None => def,
+            None => def.to_owned(),
         }
     }
     pub fn get<T: FromStr>(&self, flags: &[&'a str], def: T) -> T {

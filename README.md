@@ -49,6 +49,18 @@ usage: wireguard-proxy [options...]
  -h, --help                      print this usage text
  -st, --socket-timeout <seconds> Socket timeout (time to wait for data)
                                  before terminating, default: 0
+
+ Environment variable support:
+ For every command line option, short and long, if you replace all
+ leading - with WGP_, and replace all remaining - with _, and uppercase
+ the whole thing, if you don't specify that command line option we will
+ read that environment variable for the argument. boolean arguments are
+ true if anything but unset, empty, 0, or false.
+ Examples:
+   --tcp-target ARG is WGP_TCP_TARGET=ARG
+   --socket-timeout 5 is WGP_SOCKET_TIMEOUT=5
+   --tls is WGP_TLS=1 or WGP_TLS=true
+   WGP_TLS=0 or WGP_TLS=false would be like not sending --tls
 ```
 
 Binaries:

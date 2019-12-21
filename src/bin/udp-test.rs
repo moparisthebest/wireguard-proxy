@@ -124,6 +124,18 @@ fn main() {
                                  sha256 hashes preceded by "sha256//"
                                  and separated by ";". Identical to curl's
                                  --pinnedpubkey and CURLOPT_PINNEDPUBLICKEY
+
+ Environment variable support:
+ For every command line option, short and long, if you replace all
+ leading - with WGP_, and replace all remaining - with _, and uppercase
+ the whole thing, if you don't specify that command line option we will
+ read that environment variable for the argument. boolean arguments are
+ true if anything but unset, empty, 0, or false.
+ Examples:
+   --tcp-target ARG is WGP_TCP_TARGET=ARG
+   --socket-timeout 5 is WGP_SOCKET_TIMEOUT=5
+   --tls is WGP_TLS=1 or WGP_TLS=true
+   WGP_TLS=0 or WGP_TLS=false would be like not sending --tls
         "#, default_udp_host_target, default_udp_host_target, default_socket_timeout);
         return;
     } else if args.flag("-s") || args.flag("--self-test") {
@@ -137,10 +149,12 @@ fn main() {
 
         let mut proxyd_args = vec!["-th", tcp_host, "-ut", host];
 
+        let tls_key = tls_key.as_ref().map(String::as_str);
+        let tls_cert = tls_cert.as_ref().map(String::as_str);
         if tls {
             let tls_key = tls_key.unwrap();
             let tls_cert = tls_cert.unwrap();
-            proxyd_args.extend(["-tk", tls_key, "-tc", tls_cert].iter().cloned());
+            proxyd_args.extend(["-tk", &tls_key, "-tc", &tls_cert].iter().cloned());
         }
 
         println!("executing: {} {}", proxy, proxyd_args.join(" "));
@@ -153,11 +167,12 @@ fn main() {
 
         let mut proxy_args = vec!["-tt", tcp_host];
 
+        let pinnedpubkey = pinnedpubkey.as_ref().map(String::as_str);
         if tls {
             proxy_args.push("--tls");
             if pinnedpubkey.is_some() {
                 proxy_args.push("--pinnedpubkey");
-                proxy_args.push(pinnedpubkey.unwrap());
+                proxy_args.push(&pinnedpubkey.unwrap());
             }
         }
 
@@ -236,6 +251,7 @@ fn main() {
 
         if tls {
             let hostname = tcp_host.split(":").next();
+            let pinnedpubkey = pinnedpubkey.as_ref().map(String::as_str);
             match pinnedpubkey {
                 Some(pinnedpubkey) =>
                     println!("executing: wireguard-proxy -tt {} --tls --pinnedpubkey {}", tcp_host, pinnedpubkey),
@@ -253,7 +269,7 @@ fn main() {
         println!("waiting: {:?} for wireguard-proxy client to come up.....", sleep);
         thread::sleep(sleep);
 
-        first_arg = host;
+        first_arg = host.to_owned();
     }
 
     let server = Server::new(
