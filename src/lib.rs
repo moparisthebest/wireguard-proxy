@@ -97,12 +97,6 @@ impl<'a> Args<'a> {
             None => def,
         }
     }
-    pub fn get_str_idx(&self, index: usize, def: &'a str) -> &'a str {
-        match self.args.get(index) {
-            Some(ret) => ret,
-            None => def,
-        }
-    }
 }
 
 pub struct TcpUdpPipe<T: Write + Read + TryClone<T> + Send + 'static> {

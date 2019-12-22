@@ -148,8 +148,12 @@ fn main() {
         let tcp_host = "127.0.0.1:5555";
         let sleep = Duration::from_secs(5);
 
-        let udp_test = args.get_str_idx(0, "udp-test");
-        let proxy = udp_test.clone().replace("udp-test", "wireguard-proxy");
+        let udp_test = std::env::current_exe().expect("cannot get path to current executable");
+        let proxy = udp_test.clone().with_file_name("wireguard-proxy")
+            .with_extension(udp_test.extension().unwrap_or_else(|| "".as_ref()));
+
+        let udp_test = udp_test.to_str().expect("non-utf8 executable path?");
+        let proxy = proxy.to_str().expect("non-utf8 executable path?");
 
         let mut proxyd_args = vec!["-th", tcp_host, "-ut", host];
 
