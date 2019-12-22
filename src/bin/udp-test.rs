@@ -124,6 +124,10 @@ fn main() {
                                  sha256 hashes preceded by "sha256//"
                                  and separated by ";". Identical to curl's
                                  --pinnedpubkey and CURLOPT_PINNEDPUBLICKEY
+ Note: with both --tls-key and --tls-cert,
+       only for -is (not -s) - means stdin,
+       also the same file can work for both if you combine them into
+       one pem file
 
  Environment variable support:
  For every command line option, short and long, if you replace all

@@ -44,6 +44,10 @@ usage: wireguard-proxy [options...]
                                           requires --tls-cert also
  -tc, --tls-cert <ip:port>                TLS cert to listen with,
                                           requires --tls-key also
+ Note: with both --tls-key and --tls-cert,
+       - means stdin,
+       also the same file can work for both if you combine them into
+       one pem file
 
  Common Options:
  -h, --help                      print this usage text

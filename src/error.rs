@@ -13,6 +13,9 @@ impl Error {
     pub fn new(msg: &str) -> Error {
         Error(msg.to_owned())
     }
+    pub fn new_owned(msg: String) -> Error {
+        Error(msg)
+    }
 }
 
 impl std::fmt::Display for Error {

@@ -103,8 +103,32 @@ pub struct TlsListener {
 impl TlsListener {
     pub fn new(tls_key: &str, tls_cert: &str) -> Result<TlsListener> {
         let mut acceptor = SslAcceptor::mozilla_intermediate(SslMethod::tls())?;
-        acceptor.set_private_key_file(tls_key, SslFiletype::PEM)?;
-        acceptor.set_certificate_chain_file(tls_cert)?;
+
+        if tls_key == "-" || tls_cert == "-" {
+            let mut key_and_or_cert = Vec::new();
+            println!("fully reading stdin...");
+            std::io::stdin().read_to_end(&mut key_and_or_cert)?;
+            println!("finished reading stdin");
+
+            if tls_key == "-" {
+                let tls_key = openssl::pkey::PKey::private_key_from_pem(&key_and_or_cert)?;
+                acceptor.set_private_key(&tls_key)?;
+            } else {
+                acceptor.set_private_key_file(tls_key, SslFiletype::PEM)?;
+            }
+            if tls_cert == "-" {
+                // todo: read whole chain here or???
+                let tls_cert = openssl::x509::X509::from_pem(&key_and_or_cert)?;
+                acceptor.set_certificate(&tls_cert)?;
+            } else {
+                acceptor.set_certificate_chain_file(tls_cert)?;
+            }
+
+        } else {
+            // set from files
+            acceptor.set_private_key_file(tls_key, SslFiletype::PEM)?;
+            acceptor.set_certificate_chain_file(tls_cert)?;
+        }
         acceptor.check_private_key()?;
         let acceptor = acceptor.build();
         Ok(TlsListener {
@@ -118,7 +142,7 @@ impl TlsListener {
 
 impl From<openssl::error::ErrorStack> for Error {
     fn from(value: openssl::error::ErrorStack) -> Self {
-        Error::new(value.description())
+        Error::new_owned(format!("{}", value))
     }
 }
 
