@@ -1,0 +1,59 @@
+[Unit]
+Description=wireguard-proxy for %I
+After=network-online.target nss-lookup.target
+Wants=network-online.target nss-lookup.target
+StartLimitIntervalSec=0
+Documentation=https://code.moparisthebest.com/moparisthebest/wireguard-proxy
+Documentation=https://github.com/moparisthebest/wireguard-proxy
+
+[Service]
+EnvironmentFile=/etc/wireguard-proxy/%i.conf
+ExecStart=/usr/bin/wireguard-proxy
+Restart=always
+RestartSec=1s
+# anything under here isn't strictly needed, but probably good
+# to lock this down with the minimal permissions necessary
+# which are not many at all
+User=wireguard-proxy
+DynamicUser=yes
+ConfigurationDirectory=wireguard-proxy
+ConfigurationDirectoryMode=0750
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectHostname=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6
+RestrictNamespaces=net
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+RemoveIPC=true
+SystemCallArchitectures=native
+# these are just needed to bind to low ports
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+
+# this is any existing group the key/cert can be owned by
+# so that our random user can read them
+# not needed at all without TLS, can comment out
+# see https://github.com/systemd/systemd/issues/9535
+SupplementaryGroups=systemd-network
+
+# this would be ideal because you wouldn't need file permissions
+# on the key so wireguard-proxy could read it, only systemd
+# but only the first of these works which doesn't make this
+# feasible for a template...
+#StandardInput=file:/full/hardcoded/path/to/key_and_cert.pem
+#StandardInput=${WGP_STDIN}
+#StandardInput=file:${WGP_STDIN}
+#StandardInput=file:/etc/wireguard-proxy/%i.pem
+#StandardOutput=journal
+
+[Install]
+WantedBy=multi-user.target
