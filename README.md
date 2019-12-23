@@ -94,6 +94,40 @@ Testing with GNU netcat:
 - `nc 127.0.0.1 5555` connect directly to local tcp wireguard-proxy port to send/recieve data
 - so to test through wireguard-proxy run first and last command while it's running, type in both places
 
+# OpenSSL cert generation
+
+Quick commands to generate your own certificate to use with wireguard-proxy, note if you are actually only sending
+wireguard packets over this, the TLS layer doesn't really need to provide any security or authentication, only obfuscation
+
+Currently the only authentication performed is optional and via --pinnedpubkey only if supplied
+
+```sh
+# single command self signed RSA cert
+openssl req -new -x509 -sha256 -days 3650 -nodes -subj "/C=US/CN=example.org" -newkey rsa:2048 -out cert.pem -keyout key.pem
+
+# customize key type
+# more info: https://github.com/openssl/openssl/blob/master/doc/man1/openssl-genpkey.pod
+# ordered roughly starting from oldest/worst/most supported (rsa) to newest/best/least supported (ed448) order
+# run one of these only to generate the preferred key type
+openssl genpkey -algorithm RSA -out key.pem -pkeyopt rsa_keygen_bits:1024
+openssl genpkey -algorithm RSA -out key.pem -pkeyopt rsa_keygen_bits:2048
+openssl genpkey -algorithm RSA -out key.pem -pkeyopt rsa_keygen_bits:4096
+openssl genpkey -algorithm EC -out key.pem -pkeyopt ec_paramgen_curve:P-256 -pkeyopt ec_param_enc:named_curve
+openssl genpkey -algorithm EC -out key.pem -pkeyopt ec_paramgen_curve:P-384 -pkeyopt ec_param_enc:named_curve
+openssl genpkey -algorithm EC -out key.pem -pkeyopt ec_paramgen_curve:P-521 -pkeyopt ec_param_enc:named_curve
+openssl genpkey -algorithm ED25519 -out key.pem
+openssl genpkey -algorithm ED448 -out key.pem
+
+# then run this to generate and self-sign a cert with the above key
+openssl req -new -x509 -sha256 -days 3650 -nodes -subj "/C=US/CN=example.org" -out cert.pem -key key.pem
+
+# optionally (but recommended) extract pinnedpubkey hash from the above generated cert like so:
+# openssl x509 -in cert.pem -pubkey -noout | openssl pkey -pubin -outform der | openssl dgst -sha256 -binary | openssl enc -base64
+
+# optionally run this to see human readable info about the cert
+openssl x509 -in cert.pem -noout -text
+```
+
 # License
 
 This project is licensed under either of
