@@ -86,6 +86,18 @@ impl Server {
 fn main() {
     let raw_args = env::args().collect();
     let args = Args::new(&raw_args);
+
+    if args.flag("-V") || args.flag("--version") {
+        print!("udp-test {} ", env!("CARGO_PKG_VERSION"));
+        #[cfg(not(any(feature = "tls", feature = "openssl_vendored")))]
+        println!("TLS support: None");
+        #[cfg(feature = "openssl_vendored")]
+        println!("TLS support: Static/Vendored OpenSSL");
+        #[cfg(feature = "tls")]
+        println!("TLS support: System OpenSSL");
+        return;
+    }
+
     let default_udp_host_target = "127.0.0.1:51820";
     let default_socket_timeout = 10;
 
@@ -106,6 +118,7 @@ fn main() {
     if args.flag("-h") || args.flag("--help") {
         println!(r#"usage: udp-test [options...]
  -h, --help                      print this usage text
+ -V, --version                   Show version number and TLS support then quit
  -s, --self-test                 run a self test through proxy
  -is, --internal-self-test       run a self test through proxy without
                                  spawning other processes
@@ -130,8 +143,8 @@ fn main() {
        one pem file
 
  Environment variable support:
- For every command line option, short and long, if you replace all
- leading - with WGP_, and replace all remaining - with _, and uppercase
+ For every long command line option (starting with --), if you replace the
+ leading -- with WGP_, and replace all remaining - with _, and uppercase
  the whole thing, if you don't specify that command line option we will
  read that environment variable for the argument. boolean arguments are
  true if anything but unset, empty, 0, or false.

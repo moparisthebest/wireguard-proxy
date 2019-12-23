@@ -24,11 +24,18 @@ mod tls {
 
 use tls::{TlsStream, TlsListener};
 
-fn arg_to_env<'a>(arg: &'a str) -> String {
+fn arg_to_env(arg: &str) -> Option<String> {
+    if !arg.starts_with("--") {
+        return None;
+    }
     let env = "WGP_".to_owned();
     let mut env = env + &arg.trim_matches('-').replace("-", "_");
     env.make_ascii_uppercase();
-    env
+    Some(env)
+}
+
+fn env_for_arg(arg: &str) -> Option<String> {
+    arg_to_env(arg).and_then(|key| std::env::var(key).ok())
 }
 
 #[cfg(test)]
@@ -37,9 +44,10 @@ mod tests {
 
     #[test]
     fn test_arg_to_env() {
-        assert_eq!(arg_to_env("--tcp-host"), "WGP_TCP_HOST");
-        assert_eq!(arg_to_env("--tls"), "WGP_TLS");
-        assert_eq!(arg_to_env("-h"), "WGP_H");
+        assert_eq!(arg_to_env("--tcp-host"), Some("WGP_TCP_HOST".to_owned()));
+        assert_eq!(arg_to_env("--tls"), Some("WGP_TLS".to_owned()));
+        assert_eq!(arg_to_env("-h"), None);
+        assert_eq!(arg_to_env("-th"), None);
     }
 }
 
@@ -56,9 +64,9 @@ impl<'a> Args<'a> {
             return true;
         }
         // because env we want slightly special handling of empty/0/false
-        match std::env::var(arg_to_env(flag)) {
-            Ok(env) => &env != "" && &env != "0" && &env != "false",
-            Err(_) => false,
+        match env_for_arg(flag) {
+            Some(env) => &env != "" && &env != "0" && &env != "false",
+            None => false,
         }
     }
     pub fn get_option(&self, flags: &[&'a str]) -> Option<String> {
@@ -75,7 +83,7 @@ impl<'a> Args<'a> {
         }
         // no matching arguments are found, so check env variables as a fallback
         for flag in flags.iter() {
-            let env = std::env::var(arg_to_env(flag)).ok();
+            let env = env_for_arg(flag);
             if env.is_some() {
                 return env;
             }
