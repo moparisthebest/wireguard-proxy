@@ -14,63 +14,68 @@ env:
     # TODO Update this to match the name of your project.
     - CRATE_NAME=wireguard-proxy
     - OPENSSL_STATIC=1
-    - CARGO_FEATURES=openssl_vendored
+    - CARGO_FEATURES=async
 
 matrix:
   # TODO These are all the build jobs. Adjust as necessary. Comment out what you
   # don't need
   include:
     # Android
-    - env: TARGET=aarch64-linux-android DISABLE_TESTS=1
-    - env: TARGET=arm-linux-androideabi DISABLE_TESTS=1
-    - env: TARGET=armv7-linux-androideabi DISABLE_TESTS=1
-    - env: TARGET=i686-linux-android DISABLE_TESTS=1
-    - env: TARGET=x86_64-linux-android DISABLE_TESTS=1
+    - env: TARGET=aarch64-linux-android
+    - env: TARGET=arm-linux-androideabi
+    - env: TARGET=armv7-linux-androideabi
+    - env: TARGET=i686-linux-android
+    - env: TARGET=x86_64-linux-android
 
     # iOS
     - env: TARGET=aarch64-apple-ios DISABLE_TESTS=1
       os: osx
-    - env: TARGET=armv7-apple-ios DISABLE_TESTS=1 CARGO_FEATURES=default
-      os: osx
-    - env: TARGET=armv7s-apple-ios DISABLE_TESTS=1 CARGO_FEATURES=default
-      os: osx
-    - env: TARGET=i386-apple-ios DISABLE_TESTS=1 CARGO_FEATURES=default
-      os: osx
-    - env: TARGET=x86_64-apple-ios DISABLE_TESTS=1 CARGO_FEATURES=default
+    - env: TARGET=x86_64-apple-ios DISABLE_TESTS=1
       os: osx
 
     # Linux
     - env: TARGET=aarch64-unknown-linux-gnu
+    - env: TARGET=aarch64-unknown-linux-musl
     - env: TARGET=arm-unknown-linux-gnueabi
+    - env: TARGET=arm-unknown-linux-gnueabihf
+    - env: TARGET=arm-unknown-linux-musleabi
+    - env: TARGET=arm-unknown-linux-musleabihf
+    - env: TARGET=armv5te-unknown-linux-gnueabi
+    - env: TARGET=armv5te-unknown-linux-musleabi
     - env: TARGET=armv7-unknown-linux-gnueabihf
+    - env: TARGET=armv7-unknown-linux-musleabihf
+    - env: TARGET=i586-unknown-linux-gnu
+    - env: TARGET=i586-unknown-linux-musl
     - env: TARGET=i686-unknown-linux-gnu
     - env: TARGET=i686-unknown-linux-musl
-    - env: TARGET=mips-unknown-linux-gnu
-    - env: TARGET=mips64-unknown-linux-gnuabi64
-    - env: TARGET=mips64el-unknown-linux-gnuabi64
-    - env: TARGET=mipsel-unknown-linux-gnu
-    - env: TARGET=powerpc-unknown-linux-gnu
-    - env: TARGET=powerpc64-unknown-linux-gnu
-    - env: TARGET=powerpc64le-unknown-linux-gnu
-    - env: TARGET=s390x-unknown-linux-gnu DISABLE_TESTS=1
+    - env: TARGET=mips-unknown-linux-gnu CARGO_FEATURES=openssl_vendored
+    - env: TARGET=mips-unknown-linux-musl CARGO_FEATURES=openssl_vendored
+    - env: TARGET=mips64-unknown-linux-gnuabi64 CARGO_FEATURES=openssl_vendored
+    - env: TARGET=mips64el-unknown-linux-gnuabi64 CARGO_FEATURES=openssl_vendored
+    - env: TARGET=mipsel-unknown-linux-gnu CARGO_FEATURES=openssl_vendored
+    - env: TARGET=mipsel-unknown-linux-musl CARGO_FEATURES=openssl_vendored
+    - env: TARGET=powerpc-unknown-linux-gnu CARGO_FEATURES=openssl_vendored
+    - env: TARGET=powerpc64le-unknown-linux-gnu CARGO_FEATURES=openssl_vendored
+    # neither openssl nor rustls support poor riscv64gc...
+    - env: TARGET=riscv64gc-unknown-linux-gnu CARGO_FEATURES=verbose
+    - env: TARGET=s390x-unknown-linux-gnu DISABLE_TESTS=1 CARGO_FEATURES=openssl_vendored
     - env: TARGET=x86_64-unknown-linux-gnu
     - env: TARGET=x86_64-unknown-linux-musl
+    
+    # Solaris, neither openssl nor rustls support poor solaris...
+    - env: TARGET=sparcv9-sun-solaris DISABLE_TESTS=1 CARGO_FEATURES=verbose
+    - env: TARGET=x86_64-sun-solaris DISABLE_TESTS=1 CARGO_FEATURES=verbose
 
     # OSX
-    - env: TARGET=i686-apple-darwin
-      os: osx
     - env: TARGET=x86_64-apple-darwin
       os: osx
 
     # *BSD
-    # travis-ci freebsd is broken now for some reason
-    # - env: TARGET=i686-unknown-freebsd DISABLE_TESTS=1
-    # - env: TARGET=x86_64-unknown-freebsd DISABLE_TESTS=1
-    # netbsd fails with vendored openssl, but built in one is fine
-    - env: TARGET=x86_64-unknown-netbsd DISABLE_TESTS=1 CARGO_FEATURES=tls
+    - env: TARGET=x86_64-unknown-netbsd DISABLE_TESTS=1
 
     # Windows
-    - env: TARGET=x86_64-pc-windows-gnu CARGO_FEATURES=default
+    # wine blows up in testing with async build
+    - env: TARGET=x86_64-pc-windows-gnu DISABLE_TESTS=1
 
     # Bare metal
     # These targets don't support std and as such are likely not suitable for

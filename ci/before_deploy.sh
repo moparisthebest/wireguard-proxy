@@ -8,7 +8,10 @@ main() {
     test -f Cargo.lock || cargo generate-lockfile
 
     # TODO Update this to build the artifacts that matter to you
-    cross rustc --bin wireguard-proxy --target $TARGET --release --features $CARGO_FEATURES -- -C lto
+    cross rustc --bin wireguard-proxy --target $TARGET --release --no-default-features --features $CARGO_FEATURES
+
+    # to check how they are built
+    file target/$TARGET/release/wireguard-proxy* || echo 'file failed'
 
     # TODO Update this to package the right artifacts, this needs to handle .exe too...
     case $TARGET in

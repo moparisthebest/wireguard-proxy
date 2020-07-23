@@ -41,12 +41,12 @@ udp-test -s "$@" || exit 1
 
 # first run without TLS
 cargo clean
-cargo build --release || exit 1
+cargo build --release --no-default-features || exit 1
 run_tests || exit 1
 
 # first run with non-vendored tls
 cargo clean
-cargo build --release --features tls || exit 1
+cargo build --release --no-default-features --features tls || exit 1
 # first plaintext tests
 run_tests || exit 1
 # then TLS tests
@@ -54,7 +54,15 @@ run_tests --tls --tls-key ci/cert.key --tls-cert ci/cert.pem || exit 1
 
 # second run with vendored tls
 cargo clean
-cargo build --release --features openssl_vendored || exit 1
+cargo build --release --no-default-features --features openssl_vendored || exit 1
+# first plaintext tests
+run_tests || exit 1
+# then TLS tests
+run_tests --tls --tls-key ci/cert.key --tls-cert ci/cert.pem || exit 1
+
+# third run with async+rustls
+cargo clean
+cargo build --release --no-default-features --features async || exit 1
 # first plaintext tests
 run_tests || exit 1
 # then TLS tests
