@@ -7,11 +7,13 @@ fn main() {
 
     if args.flag("-V") || args.flag("--version") {
         print!("wireguard-proxy {} ", env!("CARGO_PKG_VERSION"));
-        #[cfg(not(any(feature = "tls", feature = "openssl_vendored")))]
+        #[cfg(not(any(feature = "tls", feature = "openssl_vendored", feature = "async")))]
         println!("TLS support: None");
-        #[cfg(feature = "openssl_vendored")]
+        #[cfg(feature = "async")]
+        println!("TLS support: tokio-rustls");
+        #[cfg(all(feature = "openssl_vendored", not(feature = "async")))]
         println!("TLS support: Static/Vendored OpenSSL");
-        #[cfg(feature = "tls")]
+        #[cfg(all(feature = "tls", not(feature = "openssl_vendored"), not(feature = "async")))]
         println!("TLS support: System OpenSSL");
         return;
     }

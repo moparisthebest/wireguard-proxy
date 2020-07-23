@@ -1,7 +1,6 @@
 use core::result;
 
-use std::error::Error as StdError;
-
+#[cfg(not(any(feature = "async")))]
 pub type IoResult<T> = result::Result<T, std::io::Error>;
 
 pub type Result<T> = result::Result<T, Error>;
@@ -32,7 +31,7 @@ impl std::error::Error for Error {
 
 impl From<std::io::Error> for Error {
     fn from(value: std::io::Error) -> Self {
-        Error::new(value.description())
+        Error::new(&format!("{}", value))
     }
 }
 

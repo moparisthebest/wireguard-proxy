@@ -1,5 +1,5 @@
 use std::net::TcpStream;
-use crate::TryClone;
+use super::super::TryClone;
 use std::io::{Read, Write};
 use crate::error::*;
 

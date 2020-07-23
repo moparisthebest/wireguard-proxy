@@ -3,11 +3,11 @@ use openssl::ssl::{SslConnector, SslMethod, SslStream, SslVerifyMode, SslAccepto
 use std::sync::Arc;
 use std::cell::UnsafeCell;
 use std::net::TcpStream;
-use crate::TryClone;
 use std::io::{Read, Write};
 
+use super::super::TryClone;
+
 use crate::error::*;
-use std::error::Error as StdError;
 
 impl TryClone<TlsStream> for TlsStream {
     fn try_clone(&self) -> Result<TlsStream> {
@@ -37,7 +37,8 @@ impl TlsStream {
                 let cert = x509_store_ctx.current_cert().expect("could not get TLS cert");
                 let pubkey = cert.public_key().expect("could not get public key from TLS cert");
                 let pubkey = pubkey.public_key_to_der().expect("could not get TLS public key bytes");
-                //println!("pubkey.len(): {}", pubkey.len());
+                //println!("spki.len(): {}", pubkey.len());
+                //println!("spki: {:?}", pubkey);
 
                 let mut sha256 = openssl::sha::Sha256::new();
                 sha256.update(&pubkey);
@@ -148,6 +149,6 @@ impl From<openssl::error::ErrorStack> for Error {
 
 impl From<HandshakeError<std::net::TcpStream>> for Error {
     fn from(value: HandshakeError<std::net::TcpStream>) -> Self {
-        Error::new(value.description())
+        Error::new(&format!("{}", value))
     }
 }

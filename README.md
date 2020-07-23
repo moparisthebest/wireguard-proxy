@@ -75,9 +75,10 @@ Binaries:
 
 Building:
 
-- `cargo build --release` - minimal build without TLS support, no dependencies
-- `cargo build --release --feature tls` - links to system openssl
-- `cargo build --release --feature openssl_vendored` - compiles vendored openssl and link to it
+- `cargo build --release` - async build with TLS support supplied by rustls
+- `cargo build --release --no-default-features ` - minimal build without TLS support, no dependencies
+- `cargo build --release --no-default-features --feature tls` - links to system openssl
+- `cargo build --release --no-default-features --feature openssl_vendored` - compiles vendored openssl and link to it
 
 Testing:
 

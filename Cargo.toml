@@ -20,10 +20,18 @@ include = [
 ]
 
 [features]
-default = []
+default = ["async"]
 tls = ["openssl"]
 openssl_vendored = ["openssl/vendored"]
 verbose = []
+async = ["tokio", "tokio-rustls", "ring", "base64"]
 
 [dependencies]
+# only for non-async build with TLS support
 openssl = { version = "0.10.26", optional = true }
+# the rest of these are only required for async build
+tokio = { version = "0.2", features = [ "macros", "net", "udp", "io-std", "io-util", "rt-threaded" ], optional = true }
+tokio-rustls = { version = "0.14", features = ["dangerous_configuration"], optional = true }
+# probably should try to keep ring the exact same version as rustls, same features too
+ring = { version = "0.16.11", optional = true }
+base64 = { version = "0.12.3", optional = true }
