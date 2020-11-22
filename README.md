@@ -1,6 +1,6 @@
 # wireguard-proxy
 
-[![Travis-CI Build Status](https://api.travis-ci.org/moparisthebest/wireguard-proxy.svg?branch=master)](https://travis-ci.org/moparisthebest/wireguard-proxy)
+[![Build Status](https://ci.moparisthe.best/job/moparisthebest/job/wireguard-proxy/job/master/badge/icon%3Fstyle=plastic)](https://ci.moparisthe.best/job/moparisthebest/job/wireguard-proxy/job/master/)
 [![Build status](https://ci.appveyor.com/api/projects/status/vl8c9xdhvgn997d2/branch/master?svg=true)](https://ci.appveyor.com/project/moparisthebest/wireguard-proxy)
 [![crates.io](https://img.shields.io/crates/v/wireguard-proxy.svg)](https://crates.io/crates/wireguard-proxy)
 
@@ -70,7 +70,7 @@ usage: wireguard-proxy [options...]
 
 Binaries:
 
-- [releases](https://github.com/moparisthebest/wireguard-proxy/releases) has static builds for most platforms performed by travis-ci and appveyor courtesy of [trust](https://github.com/japaric/trust)
+- [releases](https://github.com/moparisthebest/wireguard-proxy/releases) has static builds for most platforms performed by [self-ci](https://github.com/moparisthebest/self-ci) and appveyor courtesy of [trust](https://github.com/japaric/trust)
 - Arch Linux AUR [wireguard-proxy](https://aur.archlinux.org/packages/wireguard-proxy/) and [wireguard-proxy-git](https://aur.archlinux.org/packages/wireguard-proxy-git/)
 
 Building:
